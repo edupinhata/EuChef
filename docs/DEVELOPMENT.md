@@ -142,6 +142,10 @@ Em **Settings → Rules → Rulesets → New branch ruleset**:
 
 O recurso depende de um plano GitHub Copilot compatível e da política da conta. Se a opção não aparecer, confira o plano e a disponibilidade em [Configuring automatic code review by GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/set-up-copilot/configure-automatic-review).
 
+### Proteção de tags de release
+
+O ruleset ativo `release-tag-protection` corresponde a `refs/tags/v*`. Ele permite criar uma nova tag de release, mas bloqueia atualização e exclusão posteriores. Para corrigir uma tag publicada por engano, um administrador deve desativar ou alterar deliberadamente o ruleset antes da operação.
+
 ## Execução local empacotada
 
 Na raiz:
