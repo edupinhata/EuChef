@@ -130,12 +130,14 @@ No Windows, os exemplos abaixo foram validados no **Git Bash**. O Docker Desktop
 
 ### 1. Obtenha o código
 
-Se o repositório estiver em um servidor Git:
+Via HTTPS, que funciona para leitura do repositório público sem configurar uma chave SSH:
 
 ```bash
-git clone git@github.com:edupinhata/EuChef.git
+git clone https://github.com/edupinhata/EuChef.git
 cd EuChef
 ```
+
+Quem já possui uma chave SSH autorizada no GitHub pode usar `git clone git@github.com:edupinhata/EuChef.git`. Para trabalhar a partir de um fork, substitua a URL pela do próprio fork.
 
 Se o código já estiver em sua máquina, entre diretamente na pasta raiz do projeto.
 
