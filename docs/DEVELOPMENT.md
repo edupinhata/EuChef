@@ -169,7 +169,7 @@ docker compose logs -f
 docker compose down
 ```
 
-Para apagar também o banco local:
+Para apagar também o banco local, use o comando destrutivo abaixo:
 
 ```bash
 docker compose down --volumes

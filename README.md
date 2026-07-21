@@ -326,8 +326,10 @@ docker compose config --quiet
 docker compose build
 docker compose up --detach --wait
 curl --fail http://localhost:5173/actuator/health
-docker compose down --volumes
+docker compose down
 ```
+
+Para apagar também o volume persistente do PostgreSQL, use `docker compose down --volumes`. Essa operação é destrutiva e remove os dados locais.
 
 ### Desenvolvimento orientado a testes
 
