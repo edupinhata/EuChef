@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: meal-planner
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/meal_planner}
+    username: ${DATABASE_USERNAME:meal_planner}
+    password: ${DATABASE_PASSWORD:meal_planner_local}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  port: ${BACKEND_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

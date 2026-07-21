@@ -1,0 +1,5 @@
+Antes de analisar, gerar ou alterar código, leia e siga integralmente ./AGENTS.md. Esse arquivo é a fonte canônica das diretrizes deste repositório.
+
+Regras essenciais: todo comportamento novo ou alterado deve ter teste automatizado útil, salvo exceção técnica justificada; execute os testes afetados após cada mudança coerente e as suítes completas antes de concluir; siga OWASP Top 10, ASVS e API Security Top 10; avalie complexidade computacional, consultas, memória e complexidade cognitiva/estrutural; não alegue sucesso sem executar verificações reais.
+
+Em caso de divergência, AGENTS.md prevalece.
