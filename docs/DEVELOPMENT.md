@@ -111,7 +111,9 @@ Esse job só começa depois dos jobs de backend e frontend:
 - verifica frontend, Actuator e API pelo proxy Nginx;
 - sempre encerra os serviços e remove o volume efêmero.
 
-As GitHub Actions de terceiros estão fixadas por SHA completo para reduzir risco de alteração de tag na cadeia de suprimentos. O Dependabot propõe suas atualizações.
+As GitHub Actions de terceiros estão fixadas por SHA completo e as imagens-base por digest multiarch para reduzir risco de alteração de tags na cadeia de suprimentos. O Dependabot propõe suas atualizações.
+
+Os estágios runtime executam `apk upgrade` para incorporar correções de segurança publicadas depois do digest da imagem-base. Essa escolha prioriza patches atuais: embora entradas, versões e ponto de partida estejam fixados, o build não é reprodutível bit a bit enquanto os repositórios Alpine puderem receber novos pacotes.
 
 ## Review automático com GitHub Copilot
 

@@ -2,7 +2,7 @@ name: euchef
 
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-meal_planner}
       POSTGRES_USER: ${POSTGRES_USER:-meal_planner}
@@ -29,7 +29,7 @@ services:
       DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-meal_planner}
       DATABASE_USERNAME: ${POSTGRES_USER:-meal_planner}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-meal_planner_local}
-      BACKEND_PORT: 8081
+
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8081}:8081"
     depends_on:

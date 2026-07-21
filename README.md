@@ -91,7 +91,7 @@ EuChef/
 │   ├── package.json
 │   └── vite.config.ts
 ├── docs/
-│   └── API.md               # Contrato e operação da API
+│   ├── API.md               # Contrato e operação da API
 │   └── DEVELOPMENT.md       # Branches, PRs, CI, Copilot e releases
 ├── TODO.md                  # Pendências priorizadas e critérios para produção
 ├── compose.yaml             # Stack local completo
