@@ -1,4 +1,4 @@
-# To Do — Mesa da Semana
+# To Do — EuChef
 
 Painel resumido do que falta para evoluir o projeto do ambiente local atual até uma aplicação completa e segura para produção.
 
@@ -26,7 +26,7 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
   - Não usar credenciais padrão em produção.
   - Carregar segredos por variáveis ou serviço seguro, nunca pelo repositório.
   - Desabilitar ou proteger Swagger/OpenAPI e endpoints administrativos em produção.
-- [ ] **Restringir a exposição do PostgreSQL local.**
+- [x] **Restringir a exposição do PostgreSQL local.**
   - Publicar a porta do Compose somente em `127.0.0.1`, salvo necessidade documentada.
   - Não reutilizar a senha de desenvolvimento em ambientes compartilhados.
 - [ ] **Revisar controles HTTP para produção.**
@@ -103,8 +103,8 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
   - Extrair transformação de payload para função testável.
   - Avaliar componentes menores para nutrição e sazonalidade.
   - Manter estado e regras de negócio fora do JSX quando possível.
-- [ ] Configurar verificação automatizada de vulnerabilidades das dependências do backend.
-- [ ] Definir CI para testes, lint, formatação, build e verificações de segurança.
+- [x] Configurar verificação automatizada de vulnerabilidades das dependências do backend.
+- [x] Definir CI para testes, lint, formatação, build e verificações de segurança.
 
 ## Já concluído
 
@@ -117,6 +117,7 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 - [x] Build, lint, formatação, Compose e auditoria npm aprovados.
 - [x] Fluxo HTTP real de ingredientes e receitas validado.
 - [x] Diretrizes de engenharia para agentes registradas em `AGENTS.md`.
+- [x] Stack Docker local com PostgreSQL, backend, frontend, healthchecks e proxy Nginx validado.
 
 ## Critério para liberar em produção
 
