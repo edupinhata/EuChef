@@ -2,7 +2,7 @@
 
 ## 1. Escopo e força normativa
 
-Estas regras se aplicam a todo o monorepo **Mesa da Semana** e a qualquer agente, IA ou automação que analise, crie, altere, revise ou remova código.
+Estas regras se aplicam a todo o monorepo **EuChef** e a qualquer agente, IA ou automação que analise, crie, altere, revise ou remova código.
 
 Antes de trabalhar:
 

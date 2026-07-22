@@ -1,8 +1,8 @@
-# Mesa da Semana
+# EuChef
 
 Aplicação web mobile-first para organizar receitas, planejar as refeições da semana e, nas próximas etapas, gerar listas de compras considerando os itens disponíveis na despensa.
 
-> **Estado atual:** a fundação técnica e a navegação principal estão prontas. O cadastro de receitas, o planejamento persistente, a lista de compras e a despensa ainda serão implementados.
+> **Estado atual:** o CRUD de ingredientes e receitas existe no backend, e o gerenciamento de ingredientes está disponível no frontend. O frontend de receitas, o planejamento persistente, a lista de compras e a despensa ainda serão implementados.
 >
 > 📋 **Pendências e preparação para produção:** consulte o [`TODO.md`](TODO.md).
 
@@ -18,6 +18,7 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 - [Como executar](#como-executar)
 - [Endereços locais](#endereços-locais)
 - [Testes e qualidade](#testes-e-qualidade)
+- [Fluxo de desenvolvimento e GitHub](#fluxo-de-desenvolvimento-e-github)
 - [Build de produção](#build-de-produção)
 - [Comandos do banco de dados](#comandos-do-banco-de-dados)
 - [Documentação da API](#documentação-da-api)
@@ -26,8 +27,10 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 ## Funcionalidades atuais
 
 - shell responsivo com prioridade para celulares;
-- navegação entre Semana, Receitas, Compras e Despensa;
+- navegação entre Semana, Receitas, Ingredientes, Compras e Despensa;
 - tela inicial da semana e estados vazios das áreas principais;
+- CRUD de ingredientes no backend e frontend;
+- CRUD de receitas no backend;
 - backend conectado ao PostgreSQL;
 - health check com Spring Boot Actuator;
 - especificação OpenAPI e Swagger UI;
@@ -65,26 +68,33 @@ As telas de receitas, compras e despensa ainda representam a estrutura inicial d
 
 ### Infraestrutura local
 
-- Docker Compose;
-- PostgreSQL 17 Alpine com volume persistente e health check.
+- Docker Compose com PostgreSQL, backend e frontend;
+- imagens multi-stage com processos de aplicação não privilegiados;
+- Nginx para SPA, cabeçalhos de segurança e proxy da API;
+- GitHub Actions para CI, smoke test e publicação no GHCR.
 
 ## Estrutura do projeto
 
 ```text
-meal-planner/
+EuChef/
+├── .github/                # CI, publicação, Dependabot e template de PR
 ├── backend/                 # API Spring Boot
+│   ├── Dockerfile
 │   ├── src/main/
 │   ├── src/test/
 │   ├── pom.xml
 │   └── mvnw
 ├── frontend/                # Aplicação React
+│   ├── Dockerfile
+│   ├── nginx.conf
 │   ├── src/
 │   ├── package.json
 │   └── vite.config.ts
 ├── docs/
-│   └── API.md               # Contrato e operação da API
+│   ├── API.md               # Contrato e operação da API
+│   └── DEVELOPMENT.md       # Branches, PRs, CI, Copilot e releases
 ├── TODO.md                  # Pendências priorizadas e critérios para produção
-├── compose.yaml             # PostgreSQL local
+├── compose.yaml             # Stack local completo
 ├── .env.example             # Exemplo de variáveis do Compose
 └── README.md
 ```
@@ -120,12 +130,14 @@ No Windows, os exemplos abaixo foram validados no **Git Bash**. O Docker Desktop
 
 ### 1. Obtenha o código
 
-Se o repositório estiver em um servidor Git:
+Via HTTPS, que funciona para leitura do repositório público sem configurar uma chave SSH:
 
 ```bash
-git clone <URL_DO_REPOSITORIO>
-cd meal-planner
+git clone https://github.com/edupinhata/EuChef.git
+cd EuChef
 ```
+
+Quem já possui uma chave SSH autorizada no GitHub pode usar `git clone git@github.com:edupinhata/EuChef.git`. Para trabalhar a partir de um fork, substitua a URL pela do próprio fork.
 
 Se o código já estiver em sua máquina, entre diretamente na pasta raiz do projeto.
 
@@ -178,7 +190,9 @@ O Docker Compose lê automaticamente esse `.env`:
 | `POSTGRES_DB`       | `meal_planner`       | Nome do banco                            |
 | `POSTGRES_USER`     | `meal_planner`       | Usuário do banco                         |
 | `POSTGRES_PASSWORD` | `meal_planner_local` | Senha somente para desenvolvimento local |
-| `POSTGRES_PORT`     | `5433`               | Porta publicada no computador            |
+| `POSTGRES_PORT`     | `5433`               | Porta local do PostgreSQL                |
+| `BACKEND_PORT`      | `8081`               | Porta local do backend                   |
+| `FRONTEND_PORT`     | `5173`               | Porta local do frontend                  |
 
 O arquivo `.env` está ignorado pelo Git e não deve conter credenciais de produção.
 
@@ -205,6 +219,25 @@ Valores aceitos:
 Se alterar usuário, senha, banco ou porta no Compose, mantenha as variáveis `DATABASE_*` do backend consistentes.
 
 ## Como executar
+
+### Stack completo com Docker
+
+Esta é a forma mais próxima do artefato de entrega e exige apenas Docker:
+
+```bash
+cp .env.example .env
+docker compose up --build --detach --wait
+```
+
+A aplicação estará em <http://localhost:5173>. Para consultar o estado e encerrar:
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+### Desenvolvimento com recarga automática
 
 Use três terminais: um para o banco, um para o backend e outro para o frontend.
 
@@ -288,6 +321,18 @@ Para executar todos os gates a partir da raiz no Git Bash:
 (cd frontend && npm run lint && npm test -- --run && npm run build && npm run format:check)
 ```
 
+Para validar o mesmo empacotamento executado na CI:
+
+```bash
+docker compose config --quiet
+docker compose build
+docker compose up --detach --wait
+curl --fail http://localhost:5173/actuator/health
+docker compose down
+```
+
+Para apagar também o volume persistente do PostgreSQL, use `docker compose down --volumes`. Essa operação é destrutiva e remove os dados locais.
+
 ### Desenvolvimento orientado a testes
 
 O Vitest pode permanecer observando alterações durante o desenvolvimento:
@@ -304,7 +349,27 @@ cd frontend
 npm run format
 ```
 
+## Fluxo de desenvolvimento e GitHub
+
+Contribuições seguem branches curtas e pull requests para `main`. Após ativar o ruleset administrativo descrito no guia, CI e review pelo GitHub Copilot tornam-se automáticos e obrigatórios. O guia completo está em [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
+
+Os workflows versionados são:
+
+- `.github/workflows/ci.yml`: testes, lint, formatação, build e smoke test do Compose;
+- `.github/workflows/publish-images.yml`: publicação manual ou por tag no GitHub Container Registry;
+- `.github/dependabot.yml`: atualizações periódicas de Maven, npm, Actions e imagens-base.
+
 ## Build de produção
+
+### Imagens Docker
+
+Na raiz:
+
+```bash
+docker compose build
+```
+
+As imagens locais geradas são `euchef/backend:local` e `euchef/frontend:local`. Tags `vX.Y.Z` publicam imagens multi-arquitetura no GHCR; consulte [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 ### Backend
 
@@ -324,7 +389,7 @@ npm run build
 npm run preview
 ```
 
-Os arquivos estáticos são gerados em `frontend/dist/`. O comando `preview` serve apenas para conferência local; em produção, publique `dist/` em um servidor web ou serviço de hospedagem adequado.
+Os arquivos estáticos são gerados em `frontend/dist/`. O comando `preview` serve apenas para conferência local; a imagem Docker usa Nginx para servir a SPA e encaminhar a API.
 
 ## Comandos do banco de dados
 
@@ -361,7 +426,7 @@ Com o backend em execução, consulte também:
 - [Swagger UI](http://localhost:8081/swagger-ui.html), para navegação interativa;
 - [OpenAPI JSON](http://localhost:8081/v3/api-docs), para integração com ferramentas e geração de clientes.
 
-Neste estágio ainda não existem endpoints de negócio para receitas, planejamento, compras ou despensa. O arquivo da API diferencia claramente o que já está disponível do que ainda será implementado.
+O backend já oferece CRUD de ingredientes e receitas. Planejamento, compras e despensa ainda não possuem endpoints persistentes.
 
 ## Solução de problemas
 
@@ -415,4 +480,4 @@ npm run dev
 
 ## Segurança
 
-As credenciais padrão existem apenas para desenvolvimento local. Não exponha o banco ou o backend publicamente com essas credenciais. O estágio atual ainda não possui autenticação nem autorização e não está preparado para publicação em ambiente externo.
+As credenciais padrão existem apenas para desenvolvimento local. O Compose vincula PostgreSQL, backend e frontend somente a `127.0.0.1`, aplica processos não privilegiados e filesystem somente leitura aos serviços da aplicação. Ainda assim, o estágio atual não possui autenticação nem autorização e **não está preparado para exposição pública**.

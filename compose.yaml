@@ -1,21 +1,81 @@
+name: euchef
+
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-meal_planner}
       POSTGRES_USER: ${POSTGRES_USER:-meal_planner}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meal_planner_local}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
-      - meal_planner_postgres_data:/var/lib/postgresql/data
+      - euchef_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-meal_planner} -d ${POSTGRES_DB:-meal_planner}"]
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 5s
+    networks: [euchef]
     restart: unless-stopped
 
+  backend:
+    image: euchef/backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-meal_planner}
+      DATABASE_USERNAME: ${POSTGRES_USER:-meal_planner}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-meal_planner_local}
+
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8081}:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [euchef]
+    init: true
+    restart: unless-stopped
+
+  frontend:
+    image: euchef/frontend:local
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [euchef]
+    init: true
+    restart: unless-stopped
+
+networks:
+  euchef:
+    name: euchef_network
+
 volumes:
-  meal_planner_postgres_data:
+  euchef_postgres_data:
