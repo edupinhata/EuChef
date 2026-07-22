@@ -89,7 +89,6 @@ class IngredientApiTest {
 		mockMvc.perform(put(location)
 				.with(csrf())
 				.with(user("test@example.com").roles("USER"))
-				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(update))
 				.andExpect(status().isOk())
