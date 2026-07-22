@@ -11,6 +11,7 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 | P0         | Segurança da aplicação                     | Controles concluídos; produção bloqueada |
 | P1         | Desempenho e consumo de recursos           | Necessário antes de crescer              |
 | P1         | Correções funcionais e cobertura de testes | Necessário para confiabilidade           |
+| P2         | Fundação de internacionalização            | Fazer antes de expandir o produto        |
 | P2         | Funcionalidades do produto                 | Necessário para completar o MVP          |
 | P2         | Manutenibilidade                           | Melhoria contínua                        |
 
@@ -86,6 +87,39 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 - [ ] Testar edição e combinações opcionais do `IngredientForm`.
 - [ ] Testar resposta `204`, erro não JSON e falha de rede no cliente HTTP.
 
+## P2 — Fundação de internacionalização antes de expandir o produto
+
+> Decisões arquiteturais: o primeiro lançamento terá `pt-BR` como idioma padrão. URLs serão estáveis, não traduzidas e usarão identificadores técnicos em inglês. Textos apresentados ao usuário serão localizáveis; código-fonte, nomes de classes e funções, variáveis, chaves de configuração, variáveis de ambiente, testes e logs técnicos deverão ser escritos em inglês.
+
+- [ ] **1. Formalizar e documentar o contrato de internacionalização.**
+  - Definir `pt-BR` como locale padrão e fallback obrigatório.
+  - Separar texto apresentado ao usuário de identificadores técnicos internos.
+  - Manter conteúdo criado por usuários no idioma em que foi escrito, sem tradução automática implícita.
+  - Registrar convenções para chaves de tradução, namespaces e inclusão de novos textos.
+- [ ] **2. Instalar a infraestrutura de i18n no frontend.**
+  - Adotar `i18next` e `react-i18next` com inicialização centralizada.
+  - Criar catálogos `pt-BR` organizados por domínio, por exemplo `common`, `auth`, `ingredients`, `recipes` e `planning`.
+  - Implementar fallback seguro para chave ausente sem expor detalhes internos ao usuário.
+- [ ] **3. Migrar as rotas para URLs técnicas estáveis em inglês antes do lançamento público.**
+  - Substituir rotas como `/entrar`, `/semana/atual` e `/compras` por caminhos estáveis como `/login`, `/week/current` e `/shopping-list`.
+  - Manter os rótulos de navegação traduzidos independentemente das URLs.
+  - Atualizar guards, redirects, testes e documentação de forma atômica.
+- [ ] **4. Migrar todos os textos atuais da interface para os catálogos `pt-BR`.**
+  - Cobrir navegação, autenticação, ingredientes, receitas, planejamento, lista de compras, validações, confirmações, estados vazios e erros.
+  - Cobrir atributos acessíveis como `aria-label`, títulos e textos auxiliares.
+  - Não introduzir strings visíveis ao usuário diretamente em componentes novos.
+- [ ] **5. Estabilizar códigos de domínio e de erro independentes do idioma.**
+  - Persistir e trafegar códigos como `MAIN_COURSE`, `VEGAN`, `CONTAINS` e `INGREDIENT_NOT_FOUND`, nunca seus rótulos traduzidos.
+  - Mapear códigos da API para traduções no frontend, mantendo mensagem segura apenas como fallback.
+  - Escrever logs de debug e operação em inglês, sem dados pessoais ou segredos.
+- [ ] **6. Centralizar formatação dependente de locale.**
+  - Usar `Intl.DateTimeFormat`, `Intl.NumberFormat` e pluralização para datas, números, quantidades e unidades.
+  - Evitar concatenação manual de frases e suposições fixas sobre separadores decimais, plural ou ordem dos termos.
+- [ ] **7. Criar testes e gates contra regressões de internacionalização.**
+  - Cobrir locale padrão, fallback, interpolação, pluralização e formatação.
+  - Testar navegação pelas URLs estáveis e renderização em `pt-BR`.
+  - Adicionar verificação automatizada para impedir novas strings visíveis fora dos catálogos, com exceções documentadas.
+
 ## P2 — Funcionalidades do produto
 
 - [ ] **Criar o frontend completo de receitas por TDD.**
@@ -107,6 +141,17 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
   - Manter estado e regras de negócio fora do JSX quando possível.
 - [x] Configurar verificação automatizada de vulnerabilidades das dependências do backend.
 - [x] Definir CI para testes, lint, formatação, build e verificações de segurança.
+
+## P3 — Melhorias futuras de internacionalização
+
+- [ ] Adicionar catálogos completos em inglês e, conforme prioridade de mercado, espanhol.
+- [ ] Adicionar seletor de idioma e persistir a preferência no perfil do usuário.
+- [ ] Detectar a preferência do navegador no primeiro acesso, sem substituir uma escolha explícita do usuário.
+- [ ] Avaliar `Accept-Language` e mensagens localizadas no backend quando existirem clientes além da SPA.
+- [ ] Internacionalizar e-mails, notificações, exportações e demais documentos gerados.
+- [ ] Adicionar fluxo de revisão das traduções, detecção de chaves ausentes e controle de qualidade linguística.
+- [ ] Avaliar tradução assistida de conteúdo criado por usuários como recurso opcional, preservando sempre o texto original.
+- [ ] Localizar conteúdo institucional, metadados públicos e SEO sem traduzir as URLs estáveis da aplicação.
 
 ## P3 - Funcionalidades
 
