@@ -72,7 +72,7 @@ Cada commit deve ser coeso, não conter segredos nem artefatos gerados e preserv
 4. Abra o PR usando o template do repositório.
 5. Aguarde todos os checks e o review do Copilot.
 6. Resolva comentários ou justifique decisões no próprio PR.
-7. Após novos pushes, aguarde o re-review automático.
+7. Após novos pushes, aguarde a nova CI. Solicite manualmente outro review do Copilot quando as alterações forem relevantes para a análise.
 8. Faça **squash merge** somente com os checks obrigatórios verdes.
 
 A revisão por IA auxilia o processo, mas não substitui testes, análise humana ou responsabilidade do autor. Sugestões podem estar erradas e devem ser verificadas antes de serem aplicadas.
@@ -139,7 +139,7 @@ Em **Settings → Rules → Rulesets → New branch ruleset**:
    - `Containers — build and smoke test`;
 7. habilitar **Block force pushes**;
 8. habilitar **Automatically request Copilot code review**;
-9. habilitar **Review new pushes**;
+9. não habilitar **Review new pushes**; novos reviews após alterações são solicitados manualmente;
 10. não habilitar review de drafts inicialmente, para controlar consumo e ruído.
 
 O recurso depende de um plano GitHub Copilot compatível e da política da conta. Se a opção não aparecer, confira o plano e a disponibilidade em [Configuring automatic code review by GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/set-up-copilot/configure-automatic-review).
