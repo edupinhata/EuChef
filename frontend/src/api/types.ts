@@ -73,6 +73,28 @@ export interface Recipe extends Omit<
   updatedAt: string;
 }
 
+export interface AuthenticatedUser {
+  id: number;
+  displayName: string;
+  email: string;
+  role: "USER" | "ADMIN";
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface RegistrationPayload extends LoginPayload {
+  displayName: string;
+}
+
+export interface CsrfToken {
+  token: string;
+  headerName: string;
+  parameterName: string;
+}
+
 export interface ApiErrorBody {
   code: string;
   message: string;

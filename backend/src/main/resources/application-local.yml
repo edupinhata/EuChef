@@ -1,0 +1,18 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/meal_planner}
+    username: ${DATABASE_USERNAME:meal_planner}
+    password: ${DATABASE_PASSWORD:meal_planner_local}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+euchef:
+  security:
+    allowed-origins: ${EUCHEF_ALLOWED_ORIGINS:http://localhost:5173}

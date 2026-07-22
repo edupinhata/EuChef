@@ -1,254 +1,235 @@
-# API — Mesa da Semana
+# API — EuChef
 
-Esta documentação descreve o contrato HTTP disponível no estado atual do backend e como inspecioná-lo localmente.
-
-> **Importante:** ainda não existem endpoints de negócio para receitas, ingredientes, planejamento semanal, compras ou despensa. Esses recursos serão documentados aqui conforme forem implementados e testados.
-
-## Sumário
-
-- [Visão geral](#visão-geral)
-- [Iniciando a API](#iniciando-a-api)
-- [Endpoints disponíveis](#endpoints-disponíveis)
-- [Health check](#health-check)
-- [Informações do serviço](#informações-do-serviço)
-- [OpenAPI](#openapi)
-- [Swagger UI](#swagger-ui)
-- [Autenticação e segurança](#autenticação-e-segurança)
-- [Variáveis de ambiente](#variáveis-de-ambiente)
-- [Banco e migrações](#banco-e-migrações)
-- [Erros e versionamento](#erros-e-versionamento)
-- [Estado dos recursos de negócio](#estado-dos-recursos-de-negócio)
+Contrato HTTP atual do backend e fluxo de autenticação da SPA.
 
 ## Visão geral
 
-| Item                           | Valor atual             |
-| ------------------------------ | ----------------------- |
-| URL-base local                 | `http://localhost:8081` |
-| Formato previsto para recursos | JSON em UTF-8           |
-| Especificação                  | OpenAPI 3.1             |
-| Autenticação                   | Ainda não implementada  |
-| Persistência                   | PostgreSQL 17           |
-| Migrações                      | Flyway                  |
+| Item                         | Valor                   |
+| ---------------------------- | ----------------------- |
+| URL-base local direta        | `http://localhost:8081` |
+| URL-base pelo frontend/Nginx | `http://localhost:5173` |
+| Formato                      | JSON UTF-8              |
+| API de negócio               | `/api/v1`               |
+| Autenticação                 | sessão HTTP server-side |
+| Perfis                       | `USER`, `ADMIN`         |
+| Persistência                 | PostgreSQL 17 + Flyway  |
 
-Os endpoints administrativos atualmente expostos são fornecidos pelo Spring Boot Actuator e pelo Springdoc. Não há prefixo `/api` utilizável nesta etapa porque os controladores de negócio ainda não foram criados.
+A SPA usa a mesma origem do Nginx. O navegador recebe apenas um cookie de sessão `HttpOnly`; senhas e tokens de autenticação não são armazenados no browser. Operações mutáveis exigem CSRF.
 
-## Iniciando a API
+## Autenticação
 
-Na raiz do repositório, inicie o banco:
+### Fluxo
 
-```bash
-docker compose up -d db
-docker compose ps
-```
+1. obtenha o token CSRF com `GET /api/v1/auth/csrf` e preserve o cookie;
+2. envie o token no header informado pela resposta, normalmente `X-CSRF-TOKEN`;
+3. registre uma conta ou faça login;
+4. preserve o cookie de sessão nas requisições seguintes;
+5. finalize com `POST /api/v1/auth/logout`, também com CSRF.
 
-Depois, em outro terminal:
-
-```bash
-cd backend
-./mvnw spring-boot:run
-```
-
-A API estará pronta quando o log contiver:
-
-```text
-Started MealPlannerApplication
-```
-
-Teste a disponibilidade:
+### Exemplo com curl e jq
 
 ```bash
-curl -i http://localhost:8081/actuator/health
+BASE_URL='http://localhost:5173'
+COOKIE_JAR='euchef-cookies.txt'
+
+CSRF_TOKEN=$(curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  "$BASE_URL/api/v1/auth/csrf" | jq -r '.token')
+
+curl -i -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -H "X-CSRF-TOKEN: $CSRF_TOKEN" \
+  -d '{"displayName":"Ana Souza","email":"ana@example.com","password":"uma-senha-local-123"}' \
+  "$BASE_URL/api/v1/auth/register"
+
+curl -i -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  -H 'Content-Type: application/json' \
+  -H "X-CSRF-TOKEN: $CSRF_TOKEN" \
+  -d '{"email":"ana@example.com","password":"uma-senha-local-123"}' \
+  "$BASE_URL/api/v1/auth/login"
+
+curl -sS -b "$COOKIE_JAR" "$BASE_URL/api/v1/auth/me"
 ```
 
-## Endpoints disponíveis
+O cadastro público sempre cria `USER`; o cliente não escolhe o papel. Contas `ADMIN` devem ser promovidas por uma operação administrativa controlada fora da API pública.
 
-| Método | Caminho            | Finalidade                                       | Autenticação atual     |
-| ------ | ------------------ | ------------------------------------------------ | ---------------------- |
-| `GET`  | `/actuator/health` | Estado geral e grupos de disponibilidade         | Não exigida localmente |
-| `GET`  | `/actuator/info`   | Informações públicas configuradas para o serviço | Não exigida localmente |
-| `GET`  | `/v3/api-docs`     | Especificação OpenAPI em JSON                    | Não exigida localmente |
-| `GET`  | `/swagger-ui.html` | Entrada da interface Swagger UI                  | Não exigida localmente |
+### Endpoints de autenticação
 
-## Health check
+| Método | Caminho                 | Acesso      | CSRF | Sucesso |
+| ------ | ----------------------- | ----------- | ---- | ------- |
+| `GET`  | `/api/v1/auth/csrf`     | público     | não  | `200`   |
+| `POST` | `/api/v1/auth/register` | público     | sim  | `201`   |
+| `POST` | `/api/v1/auth/login`    | público     | sim  | `200`   |
+| `GET`  | `/api/v1/auth/me`       | autenticado | não  | `200`   |
+| `POST` | `/api/v1/auth/logout`   | autenticado | sim  | `204`   |
 
-### Requisição
-
-```http
-GET /actuator/health HTTP/1.1
-Host: localhost:8081
-Accept: application/json
-```
-
-Exemplo com `curl`:
-
-```bash
-curl -sS http://localhost:8081/actuator/health
-```
-
-### Resposta saudável
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/vnd.spring-boot.actuator.v3+json
-```
-
-Exemplo de corpo observado na fundação do projeto:
+Registro:
 
 ```json
 {
-  "groups": ["liveness", "readiness"],
-  "status": "UP"
+  "displayName": "Ana Souza",
+  "email": "ana@example.com",
+  "password": "uma-senha-local-123"
 }
 ```
 
-O campo `status` indica o estado agregado. A configuração atual usa `show-details: when-authorized`; portanto, detalhes de componentes podem não aparecer para uma chamada anônima.
+Resposta autenticada, sem hash de senha:
 
-Estados comuns do Actuator incluem:
-
-| Estado           | Significado geral                            |
-| ---------------- | -------------------------------------------- |
-| `UP`             | Serviço disponível                           |
-| `DOWN`           | Um componente essencial está indisponível    |
-| `OUT_OF_SERVICE` | Serviço removido deliberadamente de operação |
-| `UNKNOWN`        | Não foi possível determinar o estado         |
-
-Não dependa da presença ou da ordem de campos adicionais; use `status` como sinal principal.
-
-## Informações do serviço
-
-### Requisição
-
-```bash
-curl -sS http://localhost:8081/actuator/info
+```json
+{
+  "id": 1,
+  "displayName": "Ana Souza",
+  "email": "ana@example.com",
+  "role": "USER"
+}
 ```
 
-A rota está exposta, mas pode retornar um objeto vazio enquanto não houver propriedades `info.*` configuradas. Não a utilize como fonte de versão até que metadados de build sejam adicionados explicitamente.
+O e-mail é normalizado para minúsculas. A senha deve ter entre 12 e 128 caracteres no registro e é persistida somente como hash BCrypt adaptativo.
 
-## OpenAPI
+> **Risco residual temporariamente aceito:** um e-mail já registrado retorna `409 EMAIL_ALREADY_REGISTERED`, permitindo confirmar a existência de uma conta. O contrato é permitido apenas em desenvolvimento e homologação privada. Antes de exposição pública, o cadastro deve migrar para verificação de e-mail fora de banda e retornar uma resposta indistinguível para endereços novos e existentes. Rate limiting reduz exploração em massa, mas não corrige a enumeração.
 
-A especificação é gerada automaticamente pelo Springdoc a partir da aplicação em execução.
+## Ingredientes
 
-### Consultar JSON
+Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSRF.
 
-```bash
-curl -sS http://localhost:8081/v3/api-docs
+| Método   | Caminho                    | Resultado                 |
+| -------- | -------------------------- | ------------------------- |
+| `GET`    | `/api/v1/ingredients`      | `200`, lista              |
+| `POST`   | `/api/v1/ingredients`      | `201`, ingrediente criado |
+| `GET`    | `/api/v1/ingredients/{id}` | `200`                     |
+| `PUT`    | `/api/v1/ingredients/{id}` | `200`                     |
+| `DELETE` | `/api/v1/ingredients/{id}` | `204`                     |
+
+Exemplo mínimo de criação:
+
+```json
+{
+  "name": "Arroz integral",
+  "description": "Grão integral",
+  "defaultUnit": "GRAM"
+}
 ```
 
-URL local:
+Nutrição por 100 g e sazonalidade são opcionais e aparecem no schema OpenAPI local.
 
-<http://localhost:8081/v3/api-docs>
+## Receitas
 
-No estado atual, o documento é OpenAPI 3.1 e pode conter `paths` vazio, pois os controladores de negócio ainda não foram implementados.
+Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSRF.
 
-### Salvar a especificação
+| Método   | Caminho                | Resultado             |
+| -------- | ---------------------- | --------------------- |
+| `GET`    | `/api/v1/recipes`      | `200`, lista          |
+| `POST`   | `/api/v1/recipes`      | `201`, receita criada |
+| `GET`    | `/api/v1/recipes/{id}` | `200`                 |
+| `PUT`    | `/api/v1/recipes/{id}` | `200`                 |
+| `DELETE` | `/api/v1/recipes/{id}` | `204`                 |
 
-No Windows com Git Bash, salve no diretório atual usando um caminho que o `curl.exe` consiga escrever:
+Ingredientes e receitas formam, nesta etapa, um catálogo compartilhado entre usuários autenticados. Propriedade e compartilhamento por autor permanecem planejados no P3 do [`TODO.md`](../TODO.md).
 
-```bash
-curl -sS http://localhost:8081/v3/api-docs -o api-docs.json
+## Administração e documentação interativa
+
+| Caminho            | Perfil local | Perfil `prod`            | Autorização |
+| ------------------ | ------------ | ------------------------ | ----------- |
+| `/actuator/health` | habilitado   | habilitado, sem detalhes | público     |
+| `/actuator/info`   | habilitado   | não exposto              | `ADMIN`     |
+| `/v3/api-docs`     | habilitado   | desabilitado             | `ADMIN`     |
+| `/swagger-ui.html` | habilitado   | desabilitado             | `ADMIN`     |
+
+O Nginx público encaminha somente `/actuator/health`; outras superfícies administrativas não são publicadas pelo frontend. No perfil local, um administrador pode acessá-las diretamente pela porta `8081`.
+
+## Erros
+
+Erros gerados pela API e pelos filtros usam:
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "A requisição contém campos inválidos",
+  "timestamp": "2026-07-22T12:00:00Z",
+  "fieldErrors": {
+    "email": "deve ser um endereço de e-mail válido"
+  }
+}
 ```
 
-A especificação em execução é a fonte de verdade para os endpoints publicados. Este arquivo Markdown fornece contexto operacional, exemplos e decisões que não aparecem integralmente no schema.
+Códigos HTTP relevantes:
 
-## Swagger UI
+|  HTTP | Situação típica                         |
+| ----: | --------------------------------------- |
+| `400` | JSON ou campos inválidos                |
+| `401` | sessão ausente ou credenciais inválidas |
+| `403` | perfil insuficiente ou CSRF inválido    |
+| `404` | recurso inexistente                     |
+| `409` | e-mail ou nome duplicado                |
+| `413` | corpo maior que o limite configurado    |
+| `429` | limite de requisições excedido          |
 
-Abra no navegador:
+Falhas de login usam mensagem genérica e não revelam se o e-mail existe.
 
-<http://localhost:8081/swagger-ui.html>
+## Controles HTTP
 
-O Springdoc pode redirecionar essa URL para a página interna da interface. O Swagger UI permite inspecionar operações e schemas e, futuramente, executar requisições de teste.
+- negação por padrão no Spring Security;
+- cookie local `EUCHEFSESSION`, `HttpOnly`, `SameSite=Lax`;
+- cookie de produção `__Host-euchef-session`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/` e sem `Domain`;
+- rotação do identificador da sessão no login;
+- invalidação e remoção do cookie no logout;
+- CORS por allowlist, sem `*` com credenciais;
+- limite padrão de corpo de 1 MiB;
+- rate limiting por endereço remoto para autenticação e API;
+- CSP, proteção contra framing, `nosniff`, Referrer Policy e Permissions Policy;
+- HSTS em respostas HTTPS.
 
-## Autenticação e segurança
+O rate limiter do backend é local à instância e possui limite de chaves em memória. Em implantação com múltiplas réplicas, use também gateway compartilhado ou armazenamento distribuído. Atrás de proxy, aceite endereços encaminhados apenas de proxies confiáveis.
 
-O estágio atual não possui Spring Security, autenticação ou autorização de usuários.
+## Configuração
 
-Consequências:
+O perfil `local` possui defaults exclusivos para desenvolvimento. O perfil `prod` exige variáveis sem fallback:
 
-- não publique esta API diretamente na internet;
-- não use credenciais reais ou de produção;
-- considere todos os endpoints locais como não protegidos;
-- autenticação, autorização e política de CORS devem ser definidas antes de qualquer implantação externa.
+| Variável                 | Local                   | Produção           |
+| ------------------------ | ----------------------- | ------------------ |
+| `DATABASE_URL`           | default local           | obrigatória        |
+| `DATABASE_USERNAME`      | default local           | obrigatória        |
+| `DATABASE_PASSWORD`      | default local           | obrigatória/secret |
+| `EUCHEF_ALLOWED_ORIGINS` | `http://localhost:5173` | obrigatória        |
+| `BACKEND_PORT`           | `8081`                  | opcional           |
 
-A ausência de autenticação nesta etapa não representa o contrato definitivo do produto.
+Propriedades adicionais podem ser definidas pelas equivalentes Spring de:
 
-## Variáveis de ambiente
-
-O backend aceita:
-
-| Variável            | Padrão                                          | Descrição              |
-| ------------------- | ----------------------------------------------- | ---------------------- |
-| `DATABASE_URL`      | `jdbc:postgresql://localhost:5433/meal_planner` | URL JDBC do PostgreSQL |
-| `DATABASE_USERNAME` | `meal_planner`                                  | Usuário do banco       |
-| `DATABASE_PASSWORD` | `meal_planner_local`                            | Senha do banco local   |
-| `BACKEND_PORT`      | `8081`                                          | Porta HTTP             |
-
-Exemplo no Git Bash:
-
-```bash
-export DATABASE_URL='jdbc:postgresql://localhost:5433/meal_planner'
-export DATABASE_USERNAME='meal_planner'
-export DATABASE_PASSWORD='meal_planner_local'
-export BACKEND_PORT='8081'
-./mvnw spring-boot:run
+```yaml
+euchef:
+  security:
+    max-request-size: 1MB
+    allowed-origins: []
+    rate-limit:
+      api-requests: 120
+      auth-requests: 10
+      window: 1m
+      max-clients: 10000
 ```
 
-O Spring Boot iniciado diretamente não lê automaticamente o `.env` da raiz. Consulte o [README principal](../README.md#configuração) para distinguir variáveis do backend e do Docker Compose.
+Não versione `.env` real nem secrets. O Spring iniciado diretamente não lê o `.env` da raiz; exporte as variáveis no processo ou use o secret store do ambiente.
 
-## Banco e migrações
+## Banco e testes
 
-A aplicação usa:
+As migrações atuais são:
 
-- PostgreSQL 17;
-- Spring Data JPA;
-- Flyway habilitado;
-- `spring.jpa.hibernate.ddl-auto=validate`;
-- `spring.jpa.open-in-view=false`.
+1. ingredientes;
+2. receitas, ingredientes associados e etapas;
+3. usuários da aplicação.
 
-O Hibernate valida o schema, mas não deve criá-lo ou alterá-lo. Mudanças estruturais devem ser feitas por migrações versionadas do Flyway.
-
-No estado atual não existem tabelas ou migrações de domínio. A primeira migração será introduzida junto ao primeiro recurso persistente.
-
-Os testes do backend usam Testcontainers e iniciam um PostgreSQL isolado automaticamente. O Docker Desktop deve estar ativo:
+O Hibernate apenas valida o schema (`ddl-auto=validate`). Os testes usam PostgreSQL real via Testcontainers:
 
 ```bash
 cd backend
-./mvnw test
+./mvnw -B -ntp clean verify
 ```
 
-## Erros e versionamento
+O Docker Desktop deve estar ativo.
 
-Ainda não existe um formato global de erro nem uma estratégia pública de versionamento para endpoints de negócio.
+## Recursos ainda não implementados
 
-Antes de publicar os primeiros endpoints, o projeto deverá definir e testar:
-
-- prefixo e versão da API, por exemplo `/api/v1`;
-- formato uniforme de erros de validação e regras de negócio;
-- códigos HTTP de cada operação;
-- paginação, ordenação e filtros;
-- tratamento de datas, horas, quantidades e unidades;
-- política de compatibilidade e descontinuação.
-
-Esses itens são decisões pendentes, não contratos já assumidos.
-
-## Estado dos recursos de negócio
-
-| Recurso                 | Situação         |
-| ----------------------- | ---------------- |
-| Ingredientes            | Não implementado |
-| Unidades e conversões   | Não implementado |
-| Receitas                | Não implementado |
-| Etapas de preparo       | Não implementado |
-| Planejamento semanal    | Não implementado |
-| Lista de compras        | Não implementado |
-| Despensa                | Não implementado |
-| Usuários e autenticação | Não implementado |
-
-Quando um recurso for implementado, esta documentação deverá incluir:
-
-1. método e caminho;
-2. parâmetros de rota e consulta;
-3. corpo de entrada;
-4. resposta de sucesso;
-5. erros possíveis;
-6. exemplos verificáveis com `curl`;
-7. referência ao schema correspondente no OpenAPI.
+- planejamento semanal persistente;
+- lista de compras;
+- despensa;
+- recuperação/verificação de conta e MFA;
+- propriedade e compartilhamento de receitas;
+- OIDC/SSO, recomendado como evolução quando um provedor de identidade for escolhido.

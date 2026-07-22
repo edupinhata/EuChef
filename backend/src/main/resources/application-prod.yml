@@ -1,0 +1,35 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+
+server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        name: __Host-euchef-session
+        secure: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+euchef:
+  security:
+    allowed-origins: ${EUCHEF_ALLOWED_ORIGINS}

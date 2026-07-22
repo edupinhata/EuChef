@@ -612,6 +612,68 @@ p {
   color: #9b3b2c;
 }
 
+.account-menu {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.account-menu > span {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu .ghost-button {
+  padding-inline: 8px;
+}
+
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+  background: var(--paper);
+}
+
+.auth-card {
+  width: min(100%, 430px);
+  padding: clamp(24px, 7vw, 42px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.auth-brand {
+  margin-bottom: 32px;
+}
+
+.auth-card h1 {
+  font-size: clamp(2.2rem, 10vw, 3.4rem);
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.auth-switch {
+  width: 100%;
+  margin-top: 14px;
+}
+
 @keyframes page-in {
   from {
     transform: translateY(5px);

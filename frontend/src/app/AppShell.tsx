@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
+import { useAuth } from "./useAuth";
 
 const navigation = [
   { to: "/semana/atual", label: "Semana", icon: <CalendarIcon /> },
@@ -10,6 +11,8 @@ const navigation = [
 ];
 
 export function AppShell() {
+  const { user, logout } = useAuth();
+
   return (
     <div className="app-frame">
       <header className="app-header">
@@ -19,7 +22,16 @@ export function AppShell() {
           </span>
           <span>Mesa da Semana</span>
         </a>
-        <span className="foundation-badge">Fundação</span>
+        <div className="account-menu">
+          <span title={user?.email}>{user?.displayName}</span>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => void logout()}
+          >
+            Sair
+          </button>
+        </div>
       </header>
 
       <main className="app-content">

@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import br.com.eduardo.mealplanner.TestcontainersConfiguration;
 import org.junit.jupiter.api.Test;
@@ -56,6 +58,8 @@ class RecipeApiTest {
 				""".formatted(pumpkinId, onionId);
 
 		var response = mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(request))
 				.andExpect(status().isCreated())
@@ -69,7 +73,7 @@ class RecipeApiTest {
 				.andReturn();
 
 		var location = response.getResponse().getHeader("Location");
-		mockMvc.perform(get(location))
+		mockMvc.perform(get(location).with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.servings").value(4))
 				.andExpect(jsonPath("$.preparationTimeMinutes").value(45));
@@ -80,18 +84,22 @@ class RecipeApiTest {
 		long ingredientId = createIngredient("Lentilha marrom", "GRAM");
 		var original = recipeRequest("Ensopado de lentilha", ingredientId, "Cozinhe a lentilha.");
 		var location = mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(original))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getHeader("Location");
 
-		mockMvc.perform(get("/api/v1/recipes"))
+		mockMvc.perform(get("/api/v1/recipes").with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].name").value("Ensopado de lentilha"));
 
 		var updated = recipeRequest("Ensopado especial de lentilha", ingredientId,
 				"Deixe a lentilha de molho.", "Cozinhe até ficar macia.");
 		mockMvc.perform(put(location)
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(updated))
 				.andExpect(status().isOk())
@@ -99,8 +107,8 @@ class RecipeApiTest {
 				.andExpect(jsonPath("$.preparationSteps.length()").value(2))
 				.andExpect(jsonPath("$.preparationSteps[1].position").value(2));
 
-		mockMvc.perform(delete(location)).andExpect(status().isNoContent());
-		mockMvc.perform(get(location))
+		mockMvc.perform(delete(location).with(csrf()).with(user("test@example.com").roles("USER"))).andExpect(status().isNoContent());
+		mockMvc.perform(get(location).with(user("test@example.com").roles("USER")))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
 	}
@@ -132,6 +140,8 @@ class RecipeApiTest {
 				}
 				""".formatted(name, unit);
 		var location = mockMvc.perform(post("/api/v1/ingredients")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(request))
 				.andExpect(status().isCreated())

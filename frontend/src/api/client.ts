@@ -1,9 +1,13 @@
 import type {
   ApiErrorBody,
+  AuthenticatedUser,
+  CsrfToken,
   Ingredient,
   IngredientPayload,
+  LoginPayload,
   Recipe,
   RecipePayload,
+  RegistrationPayload,
 } from "./types";
 
 export class ApiClientError extends Error {
@@ -25,14 +29,9 @@ export class ApiClientError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: init?.body
-      ? { "Content-Type": "application/json" }
-      : init?.headers,
-  });
+let csrfTokenPromise: Promise<CsrfToken> | undefined;
 
+async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let error: ApiErrorBody = {
       code: "REQUEST_ERROR",
@@ -55,6 +54,53 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function getCsrfToken(): Promise<CsrfToken> {
+  csrfTokenPromise ??= fetch("/api/v1/auth/csrf", {
+    credentials: "same-origin",
+  }).then(parseResponse<CsrfToken>);
+
+  try {
+    return await csrfTokenPromise;
+  } catch (error) {
+    csrfTokenPromise = undefined;
+    throw error;
+  }
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  retryInvalidCsrf = true,
+): Promise<T> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const mutatesState = !["GET", "HEAD", "OPTIONS"].includes(method);
+  const headers = new Headers(init.headers);
+
+  if (init.body) headers.set("Content-Type", "application/json");
+  if (mutatesState) {
+    const csrf = await getCsrfToken();
+    headers.set(csrf.headerName, csrf.token);
+  }
+
+  const response = await fetch(path, {
+    ...init,
+    credentials: "same-origin",
+    headers,
+  });
+  if (mutatesState && retryInvalidCsrf && response.status === 403) {
+    try {
+      const error = (await response.clone().json()) as ApiErrorBody;
+      if (error.code === "INVALID_CSRF_TOKEN") {
+        csrfTokenPromise = undefined;
+        return request<T>(path, init, false);
+      }
+    } catch {
+      // A resposta original será tratada abaixo com uma mensagem segura.
+    }
+  }
+  return parseResponse<T>(response);
+}
+
 function resource<T, P>(path: string) {
   return {
     list: () => request<T[]>(path),
@@ -72,6 +118,27 @@ function resource<T, P>(path: string) {
 }
 
 export const api = {
+  auth: {
+    me: () => request<AuthenticatedUser>("/api/v1/auth/me"),
+    login: (payload: LoginPayload) =>
+      request<AuthenticatedUser>("/api/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    register: (payload: RegistrationPayload) =>
+      request<AuthenticatedUser>("/api/v1/auth/register", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    logout: async () => {
+      await request<void>("/api/v1/auth/logout", { method: "POST" });
+      csrfTokenPromise = undefined;
+    },
+  },
   ingredients: resource<Ingredient, IngredientPayload>("/api/v1/ingredients"),
   recipes: resource<Recipe, RecipePayload>("/api/v1/recipes"),
 };
+
+export function resetApiSecurityStateForTests() {
+  csrfTokenPromise = undefined;
+}

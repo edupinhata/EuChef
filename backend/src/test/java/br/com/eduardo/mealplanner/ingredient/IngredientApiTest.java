@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import br.com.eduardo.mealplanner.TestcontainersConfiguration;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,8 @@ class IngredientApiTest {
 				""";
 
 		var response = mockMvc.perform(post("/api/v1/ingredients")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(request))
 				.andExpect(status().isCreated())
@@ -58,7 +62,7 @@ class IngredientApiTest {
 
 		var location = response.getResponse().getHeader("Location");
 
-		mockMvc.perform(get(location))
+		mockMvc.perform(get(location).with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.description").value("Abóbora de polpa firme"))
 				.andExpect(jsonPath("$.defaultUnit").value("GRAM"))
@@ -70,7 +74,7 @@ class IngredientApiTest {
 	void listsUpdatesAndDeletesIngredient() throws Exception {
 		var location = createMinimalIngredient("Tomate italiano");
 
-		mockMvc.perform(get("/api/v1/ingredients"))
+		mockMvc.perform(get("/api/v1/ingredients").with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[?(@.name == 'Tomate italiano')]").exists());
 
@@ -83,16 +87,18 @@ class IngredientApiTest {
 				""";
 
 		mockMvc.perform(put(location)
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(update))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("Tomate italiano maduro"))
 				.andExpect(jsonPath("$.defaultUnit").value("KILOGRAM"));
 
-		mockMvc.perform(delete(location))
+		mockMvc.perform(delete(location).with(csrf()).with(user("test@example.com").roles("USER")))
 				.andExpect(status().isNoContent());
 
-		mockMvc.perform(get(location))
+		mockMvc.perform(get(location).with(user("test@example.com").roles("USER")))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
 	}
@@ -109,6 +115,8 @@ class IngredientApiTest {
 				""";
 
 		mockMvc.perform(post("/api/v1/ingredients")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(invalid))
 				.andExpect(status().isBadRequest())
@@ -126,6 +134,8 @@ class IngredientApiTest {
 				}
 				""";
 		mockMvc.perform(post("/api/v1/ingredients")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(duplicate))
 				.andExpect(status().isConflict())
@@ -140,6 +150,8 @@ class IngredientApiTest {
 				}
 				""".formatted(name);
 		return mockMvc.perform(post("/api/v1/ingredients")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(request))
 				.andExpect(status().isCreated())

@@ -1,19 +1,33 @@
 spring:
   application:
     name: meal-planner
-  datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/meal_planner}
-    username: ${DATABASE_USERNAME:meal_planner}
-    password: ${DATABASE_PASSWORD:meal_planner_local}
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      max-file-size: 1MB
+      max-request-size: 1MB
 
 server:
   port: ${BACKEND_PORT:8081}
+  forward-headers-strategy: framework
+  shutdown: graceful
+  max-http-request-header-size: 16KB
+  error:
+    include-message: never
+    include-stacktrace: never
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        name: EUCHEFSESSION
+        http-only: true
+        same-site: lax
+        secure: false
 
 management:
   endpoints:
@@ -22,8 +36,21 @@ management:
         include: health,info
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: never
 
 springdoc:
+  api-docs:
+    enabled: false
   swagger-ui:
+    enabled: false
     path: /swagger-ui.html
+
+euchef:
+  security:
+    allowed-origins: []
+    max-request-size: 1MB
+    rate-limit:
+      api-requests: 120
+      auth-requests: 10
+      window: 1m
+      max-clients: 10000
