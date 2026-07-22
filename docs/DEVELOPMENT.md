@@ -115,6 +115,13 @@ As GitHub Actions de terceiros estão fixadas por SHA completo e as imagens-base
 
 Os estágios runtime executam `apk upgrade` para incorporar correções de segurança publicadas depois do digest da imagem-base. Essa escolha prioriza patches atuais: embora entradas, versões e ponto de partida estejam fixados, o build não é reprodutível bit a bit enquanto os repositórios Alpine puderem receber novos pacotes.
 
+## Restrições antes de produção
+
+- O cadastro público atual distingue e-mail novo de existente por `201`/`409`. Essa enumeração foi aceita temporariamente somente para desenvolvimento e homologação privada. Produção exige confirmação de e-mail fora de banda e resposta indistinguível.
+- O backend não pode ser publicado diretamente. Ele deve receber tráfego somente do proxy confiável, que sobrescreve `X-Forwarded-For`; redes e regras do ambiente de destino devem impor essa fronteira.
+- O primeiro `ADMIN` não é criado por endpoint público. A promoção deve ocorrer por procedimento administrativo controlado e auditável; nunca aceite o papel enviado pelo cliente.
+- O rate limiter backend mantém estado por instância. Múltiplas réplicas exigem gateway ou armazenamento compartilhado.
+
 ## Review automático com GitHub Copilot
 
 O conteúdo versionado que orienta o review está em:
@@ -164,7 +171,7 @@ Verifique:
 ```bash
 curl --fail http://localhost:5173/healthz
 curl --fail http://localhost:5173/actuator/health
-curl --fail http://localhost:5173/api/v1/ingredients
+test "$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:5173/api/v1/ingredients)" = "401"
 ```
 
 Para acompanhar e encerrar:
@@ -181,7 +188,7 @@ Para apagar também o banco local, use o comando destrutivo abaixo:
 docker compose down --volumes
 ```
 
-As portas são vinculadas a `127.0.0.1`. Isso é deliberado: a API ainda não possui autenticação e não pode ser exposta publicamente.
+As portas locais são vinculadas a `127.0.0.1`. O backend exige sessão e CSRF, mas exposição pública ainda depende de TLS, secrets externos, backup, observabilidade e validação no ambiente de destino.
 
 ## Imagens no GitHub Container Registry
 
@@ -206,7 +213,7 @@ git push origin v0.1.0
 
 As imagens são multi-arquitetura (`linux/amd64` e `linux/arm64`) e incluem proveniência e SBOM geradas pelo BuildKit.
 
-A publicação de imagens **não é deploy em produção**. Um ambiente remoto ainda precisará de autenticação, autorização, secrets, domínio/TLS, backup, observabilidade e estratégia de rollback.
+A publicação de imagens **não é deploy em produção**. Um ambiente remoto ainda precisa de secrets, domínio/TLS, backup, observabilidade e estratégia de rollback.
 
 ## Política de segredos e PRs externos
 

@@ -26,9 +26,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
+      SPRING_PROFILES_ACTIVE: local
       DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-meal_planner}
       DATABASE_USERNAME: ${POSTGRES_USER:-meal_planner}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-meal_planner_local}
+      EUCHEF_ALLOWED_ORIGINS: ${EUCHEF_ALLOWED_ORIGINS:-http://localhost:5173}
 
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8081}:8081"
@@ -74,8 +76,7 @@ services:
     restart: unless-stopped
 
 networks:
-  euchef:
-    name: euchef_network
+  euchef: {}
 
 volumes:
   euchef_postgres_data:

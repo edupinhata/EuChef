@@ -6,35 +6,37 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 
 ## Visão rápida
 
-| Prioridade | Tema                                       | Situação                        |
-| ---------- | ------------------------------------------ | ------------------------------- |
-| P0         | Segurança para exposição pública           | Bloqueia produção               |
-| P1         | Desempenho e consumo de recursos           | Necessário antes de crescer     |
-| P1         | Correções funcionais e cobertura de testes | Necessário para confiabilidade  |
-| P2         | Funcionalidades do produto                 | Necessário para completar o MVP |
-| P2         | Manutenibilidade                           | Melhoria contínua               |
+| Prioridade | Tema                                       | Situação                                 |
+| ---------- | ------------------------------------------ | ---------------------------------------- |
+| P0         | Segurança da aplicação                     | Controles concluídos; produção bloqueada |
+| P1         | Desempenho e consumo de recursos           | Necessário antes de crescer              |
+| P1         | Correções funcionais e cobertura de testes | Necessário para confiabilidade           |
+| P2         | Funcionalidades do produto                 | Necessário para completar o MVP          |
+| P2         | Manutenibilidade                           | Melhoria contínua                        |
 
 ## P0 — Segurança antes de publicar
 
-- [ ] **Adicionar autenticação e autorização no backend.**
-  - Integrar Spring Security.
-  - Exigir autenticação para leitura e escrita conforme a regra do produto.
-  - Aplicar autorização no servidor, inclusive por recurso/usuário quando houver contas.
-  - Testar acesso anônimo, acesso autorizado e acesso negado.
-- [ ] **Criar configuração segura por ambiente.**
-  - Manter as facilidades atuais somente no perfil local.
-  - Não usar credenciais padrão em produção.
-  - Carregar segredos por variáveis ou serviço seguro, nunca pelo repositório.
-  - Desabilitar ou proteger Swagger/OpenAPI e endpoints administrativos em produção.
+- [x] **Adicionar autenticação e autorização no backend.**
+  - Spring Security com sessão, `USER`/`ADMIN` e negação por padrão.
+  - Leitura e escrita exigem autenticação; endpoints administrativos exigem `ADMIN`.
+  - O modelo de contas preserva identificadores internos para futura federação OIDC.
+  - Testes cobrem anônimo, autorizado, negado, fixação e invalidação de sessão.
+- [x] **Criar configuração segura por ambiente.**
+  - Facilidades e credenciais locais isoladas no perfil `local`.
+  - Perfil `prod` sem fallback de banco, senha ou origens CORS e com falha fechada.
+  - Segredos carregados por ambiente; nenhum secret de produção versionado.
+  - Swagger/OpenAPI desabilitados e Actuator administrativo protegido em produção.
 - [x] **Restringir a exposição do PostgreSQL local.**
   - Publicar a porta do Compose somente em `127.0.0.1`, salvo necessidade documentada.
   - Não reutilizar a senha de desenvolvimento em ambientes compartilhados.
-- [ ] **Revisar controles HTTP para produção.**
-  - CORS restrito às origens necessárias.
-  - Proteção CSRF se a autenticação usar cookies.
-  - Limites de payload, rate limiting e cabeçalhos de segurança.
+- [x] **Revisar controles HTTP para produção.**
+  - CORS restrito por allowlist e cookies `SameSite=Lax`, `HttpOnly` e `Secure` em produção.
+  - CSRF obrigatório em mutações, integrado ao cliente SPA.
+  - Limite de payload, rate limiting em duas camadas e headers de segurança.
+  - Risco residual documentado: o limitador backend é local por instância; múltiplas réplicas exigem estado compartilhado ou gateway.
+  - Risco residual temporariamente aceito: `409 EMAIL_ALREADY_REGISTERED` permite enumerar contas. O rate limiting reduz abuso em massa, mas não elimina o canal.
 
-> Enquanto este bloco não estiver concluído, a aplicação deve ser considerada **somente local** e não deve ser exposta publicamente.
+> Os controles P0 da aplicação estão concluídos para desenvolvimento e homologação privada. **Exposição pública permanece bloqueada** até substituir o cadastro imediato por confirmação de e-mail fora de banda com resposta indistinguível, além de TLS, secrets externos, backup, observabilidade, recuperação e validação no ambiente de destino.
 
 ## P1 — Desempenho e complexidade computacional
 
@@ -106,6 +108,11 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 - [x] Configurar verificação automatizada de vulnerabilidades das dependências do backend.
 - [x] Definir CI para testes, lint, formatação, build e verificações de segurança.
 
+## P3 - Funcionalidades
+
+- [ ] Modificar o nome Mesa da Semana para EuChef
+- [ ] Adicionar informações de qual usuário criou a receita. A ideia é futuramente poder pegar receitas de outros usuários.
+
 ## Já concluído
 
 - [x] API CRUD de ingredientes com validação, nutrição e sazonalidade.
@@ -118,12 +125,16 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 - [x] Fluxo HTTP real de ingredientes e receitas validado.
 - [x] Diretrizes de engenharia para agentes registradas em `AGENTS.md`.
 - [x] Stack Docker local com PostgreSQL, backend, frontend, healthchecks e proxy Nginx validado.
+- [x] Autenticação por sessão e CSRF validada ponta a ponta pelo proxy Nginx.
+- [x] Imagens backend e frontend aprovadas pelo Trivy sem achados altos/críticos ou secrets.
+- [x] Workflows aprovados por Actionlint e Zizmor.
 
 ## Critério para liberar em produção
 
 A aplicação só deve ser considerada pronta para produção quando:
 
 - [ ] todos os itens P0 estiverem concluídos;
+- [ ] o cadastro usar verificação de e-mail fora de banda e não permitir enumeração de contas pela resposta HTTP;
 - [ ] N+1, paginação e limites de consumo estiverem resolvidos;
 - [ ] todos os testes P1 estiverem implementados e verdes;
 - [ ] frontend e backend funcionarem juntos no ambiente de destino;

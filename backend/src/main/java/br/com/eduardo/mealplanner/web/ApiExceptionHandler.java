@@ -1,5 +1,7 @@
 package br.com.eduardo.mealplanner.web;
 
+import br.com.eduardo.mealplanner.auth.EmailAlreadyRegisteredException;
+import br.com.eduardo.mealplanner.auth.InvalidCredentialsException;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -34,6 +36,16 @@ class ApiExceptionHandler {
 				? exception.getMessage()
 				: "Já existe um recurso com os mesmos dados únicos";
 		return error(HttpStatus.CONFLICT, "DUPLICATE_RESOURCE", message, Map.of());
+	}
+
+	@ExceptionHandler(EmailAlreadyRegisteredException.class)
+	ResponseEntity<ApiError> handleEmailAlreadyRegistered(EmailAlreadyRegisteredException exception) {
+		return error(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED", exception.getMessage(), Map.of());
+	}
+
+	@ExceptionHandler(InvalidCredentialsException.class)
+	ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException exception) {
+		return error(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", exception.getMessage(), Map.of());
 	}
 
 	private ResponseEntity<ApiError> error(HttpStatus status, String code, String message,

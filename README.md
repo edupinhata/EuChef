@@ -2,7 +2,7 @@
 
 Aplicação web mobile-first para organizar receitas, planejar as refeições da semana e, nas próximas etapas, gerar listas de compras considerando os itens disponíveis na despensa.
 
-> **Estado atual:** o CRUD de ingredientes e receitas existe no backend, e o gerenciamento de ingredientes está disponível no frontend. O frontend de receitas, o planejamento persistente, a lista de compras e a despensa ainda serão implementados.
+> **Estado atual:** autenticação por sessão, perfis `USER`/`ADMIN` e controles HTTP protegem a aplicação. O CRUD de ingredientes e receitas existe no backend, e autenticação e ingredientes estão integrados ao frontend. O frontend de receitas, o planejamento persistente, a lista de compras e a despensa ainda serão implementados.
 >
 > 📋 **Pendências e preparação para produção:** consulte o [`TODO.md`](TODO.md).
 
@@ -31,6 +31,9 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 - tela inicial da semana e estados vazios das áreas principais;
 - CRUD de ingredientes no backend e frontend;
 - CRUD de receitas no backend;
+- cadastro, login, restauração de sessão e logout no frontend;
+- autenticação por sessão, CSRF e autorização `USER`/`ADMIN` no backend;
+- CORS restritivo, limites de payload, rate limiting e headers de segurança;
 - backend conectado ao PostgreSQL;
 - health check com Spring Boot Actuator;
 - especificação OpenAPI e Swagger UI;
@@ -46,6 +49,7 @@ As telas de receitas, compras e despensa ainda representam a estrutura inicial d
 - Spring Boot 4.0.7;
 - Spring Web MVC;
 - Spring Data JPA;
+- Spring Security;
 - Bean Validation;
 - Flyway;
 - PostgreSQL;
@@ -165,7 +169,7 @@ No Windows com Git Bash, o script `./mvnw` já pode ser usado diretamente.
 
 ## Configuração
 
-A configuração padrão funciona sem criar um arquivo `.env`:
+O perfil Spring `local` e o Compose funcionam sem secrets de produção:
 
 | Serviço    | Host        |  Porta | Banco/usuário  |
 | ---------- | ----------- | -----: | -------------- |
@@ -185,14 +189,15 @@ cp .env.example .env
 
 O Docker Compose lê automaticamente esse `.env`:
 
-| Variável            | Padrão               | Descrição                                |
-| ------------------- | -------------------- | ---------------------------------------- |
-| `POSTGRES_DB`       | `meal_planner`       | Nome do banco                            |
-| `POSTGRES_USER`     | `meal_planner`       | Usuário do banco                         |
-| `POSTGRES_PASSWORD` | `meal_planner_local` | Senha somente para desenvolvimento local |
-| `POSTGRES_PORT`     | `5433`               | Porta local do PostgreSQL                |
-| `BACKEND_PORT`      | `8081`               | Porta local do backend                   |
-| `FRONTEND_PORT`     | `5173`               | Porta local do frontend                  |
+| Variável                 | Padrão                  | Descrição                                |
+| ------------------------ | ----------------------- | ---------------------------------------- |
+| `POSTGRES_DB`            | `meal_planner`          | Nome do banco                            |
+| `POSTGRES_USER`          | `meal_planner`          | Usuário do banco                         |
+| `POSTGRES_PASSWORD`      | `meal_planner_local`    | Senha somente para desenvolvimento local |
+| `POSTGRES_PORT`          | `5433`                  | Porta local do PostgreSQL                |
+| `BACKEND_PORT`           | `8081`                  | Porta local do backend                   |
+| `FRONTEND_PORT`          | `5173`                  | Porta local do frontend                  |
+| `EUCHEF_ALLOWED_ORIGINS` | `http://localhost:5173` | Origens CORS locais permitidas           |
 
 O arquivo `.env` está ignorado pelo Git e não deve conter credenciais de produção.
 
@@ -205,16 +210,21 @@ export DATABASE_URL='jdbc:postgresql://localhost:5433/meal_planner'
 export DATABASE_USERNAME='meal_planner'
 export DATABASE_PASSWORD='meal_planner_local'
 export BACKEND_PORT='8081'
+export EUCHEF_ALLOWED_ORIGINS='http://localhost:5173'
+export SPRING_PROFILES_ACTIVE='local'
 ```
 
 Valores aceitos:
 
-| Variável            | Padrão                                          | Descrição             |
-| ------------------- | ----------------------------------------------- | --------------------- |
-| `DATABASE_URL`      | `jdbc:postgresql://localhost:5433/meal_planner` | URL JDBC              |
-| `DATABASE_USERNAME` | `meal_planner`                                  | Usuário JDBC          |
-| `DATABASE_PASSWORD` | `meal_planner_local`                            | Senha JDBC            |
-| `BACKEND_PORT`      | `8081`                                          | Porta HTTP do backend |
+| Variável                 | Padrão                     | Descrição             |
+| ------------------------ | -------------------------- | --------------------- |
+| `DATABASE_URL`           | default somente em `local` | URL JDBC              |
+| `DATABASE_USERNAME`      | default somente em `local` | Usuário JDBC          |
+| `DATABASE_PASSWORD`      | default somente em `local` | Senha JDBC            |
+| `EUCHEF_ALLOWED_ORIGINS` | default somente em `local` | Allowlist CORS        |
+| `BACKEND_PORT`           | `8081`                     | Porta HTTP do backend |
+
+O perfil `prod` não possui fallback para banco, senha ou origens permitidas e recusa a inicialização quando a configuração obrigatória está ausente.
 
 Se alterar usuário, senha, banco ou porta no Compose, mantenha as variáveis `DATABASE_*` do backend consistentes.
 
@@ -258,13 +268,14 @@ Em outro terminal:
 
 ```bash
 cd backend
-./mvnw spring-boot:run
+SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run
 ```
 
 No Windows sem Git Bash, também é possível usar:
 
 ```bat
 cd backend
+set SPRING_PROFILES_ACTIVE=local
 mvnw.cmd spring-boot:run
 ```
 
@@ -283,15 +294,15 @@ O Vite exibirá o endereço local no terminal.
 
 ## Endereços locais
 
-| Recurso                | Endereço                                |
-| ---------------------- | --------------------------------------- |
-| Aplicação web          | <http://localhost:5173>                 |
-| Backend                | <http://localhost:8081>                 |
-| Health check           | <http://localhost:8081/actuator/health> |
-| Informações do serviço | <http://localhost:8081/actuator/info>   |
-| Swagger UI             | <http://localhost:8081/swagger-ui.html> |
-| OpenAPI JSON           | <http://localhost:8081/v3/api-docs>     |
-| PostgreSQL             | `localhost:5433`                        |
+| Recurso                | Endereço                                                 |
+| ---------------------- | -------------------------------------------------------- |
+| Aplicação web          | <http://localhost:5173>                                  |
+| Backend                | <http://localhost:8081>                                  |
+| Health check           | <http://localhost:8081/actuator/health>                  |
+| Informações do serviço | <http://localhost:8081/actuator/info> (`ADMIN`, local)   |
+| Swagger UI             | <http://localhost:8081/swagger-ui.html> (`ADMIN`, local) |
+| OpenAPI JSON           | <http://localhost:8081/v3/api-docs> (`ADMIN`, local)     |
+| PostgreSQL             | `localhost:5433`                                         |
 
 ## Testes e qualidade
 
@@ -317,7 +328,7 @@ npm run format:check
 Para executar todos os gates a partir da raiz no Git Bash:
 
 ```bash
-(cd backend && ./mvnw test)
+(cd backend && ./mvnw -B -ntp clean verify)
 (cd frontend && npm run lint && npm test -- --run && npm run build && npm run format:check)
 ```
 
@@ -376,10 +387,18 @@ As imagens locais geradas são `euchef/backend:local` e `euchef/frontend:local`.
 ```bash
 cd backend
 ./mvnw clean package
-java -jar target/meal-planner-0.0.1-SNAPSHOT.jar
+java -jar target/meal-planner-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
 ```
 
-O empacotamento executa os testes. Para rodar o JAR, o PostgreSQL deve estar acessível e as variáveis `DATABASE_*` precisam apontar para ele.
+O empacotamento executa os testes. Produção deve usar `--spring.profiles.active=prod`, HTTPS e injetar `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD` e `EUCHEF_ALLOWED_ORIGINS` pelo ambiente ou secret store.
+
+### Bloqueio atual para exposição pública
+
+O cadastro imediato retorna `409 EMAIL_ALREADY_REGISTERED` quando o e-mail já existe. Essa resposta melhora a experiência local, mas permite **enumeração de contas**: terceiros conseguem confirmar quais endereços possuem usuário. O risco foi aceito temporariamente apenas para desenvolvimento e homologação privada. O rate limiting reduz automação e credential stuffing, mas não elimina o canal.
+
+Antes de abrir o EuChef ao público, o cadastro deve usar confirmação de e-mail fora de banda, resposta HTTP indistinguível para endereços novos e existentes, tokens temporários de uso único e controles de reenvio. Essa mudança é um **critério obrigatório de produção**, registrado em [`TODO.md`](TODO.md).
+
+Em qualquer implantação, o backend deve permanecer inacessível diretamente pela internet e receber tráfego apenas do proxy confiável. O Nginx sobrescreve `X-Forwarded-For` com o endereço observado na conexão, em vez de aceitar a cadeia fornecida pelo cliente.
 
 ### Frontend
 
@@ -426,7 +445,7 @@ Com o backend em execução, consulte também:
 - [Swagger UI](http://localhost:8081/swagger-ui.html), para navegação interativa;
 - [OpenAPI JSON](http://localhost:8081/v3/api-docs), para integração com ferramentas e geração de clientes.
 
-O backend já oferece CRUD de ingredientes e receitas. Planejamento, compras e despensa ainda não possuem endpoints persistentes.
+O backend oferece autenticação e CRUD protegido de ingredientes e receitas. Planejamento, compras e despensa ainda não possuem endpoints persistentes.
 
 ## Solução de problemas
 
@@ -480,4 +499,4 @@ npm run dev
 
 ## Segurança
 
-As credenciais padrão existem apenas para desenvolvimento local. O Compose vincula PostgreSQL, backend e frontend somente a `127.0.0.1`, aplica processos não privilegiados e filesystem somente leitura aos serviços da aplicação. Ainda assim, o estágio atual não possui autenticação nem autorização e **não está preparado para exposição pública**.
+As credenciais padrão existem apenas no perfil local. O Compose vincula PostgreSQL, backend e frontend somente a `127.0.0.1`, executa os serviços de aplicação sem privilégio e usa filesystem somente leitura. O backend nega acesso por padrão, usa sessão `HttpOnly`, CSRF, perfis `USER`/`ADMIN`, CORS por allowlist, limites de corpo, rate limiting e headers de segurança. Uma implantação pública ainda exige TLS, secrets externos, backup, observabilidade, recuperação e validação no ambiente de destino.

@@ -121,11 +121,8 @@ jobs:
       - name: Start local deployment
         run: docker compose up --detach --wait --wait-timeout 180
 
-      - name: Verify frontend and API through the reverse proxy
-        run: |
-          curl --fail --silent --show-error http://127.0.0.1:5173/healthz
-          curl --fail --silent --show-error http://127.0.0.1:5173/actuator/health
-          curl --fail --silent --show-error http://127.0.0.1:5173/api/v1/ingredients
+      - name: Verify authentication and API through the reverse proxy
+        run: ./scripts/smoke-security.sh
 
       - name: Show container logs on failure
         if: failure()
