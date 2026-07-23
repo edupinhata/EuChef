@@ -28,3 +28,10 @@ postgres-data/
 
 # Local verification artifacts
 artifacts/
+.ai-usage/
+
+# Python tooling
+__pycache__/
+*.py[cod]
+*.json.lock
+*.jsonl.lock

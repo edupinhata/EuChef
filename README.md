@@ -9,6 +9,7 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 ## Sumário
 
 - [To Do e preparação para produção](TODO.md)
+- [Uso de IA por pull request](docs/engineering/ai-usage/README.md)
 - [Funcionalidades atuais](#funcionalidades-atuais)
 - [Tecnologias](#tecnologias)
 - [Estrutura do projeto](#estrutura-do-projeto)
@@ -96,7 +97,9 @@ EuChef/
 │   └── vite.config.ts
 ├── docs/
 │   ├── API.md               # Contrato e operação da API
-│   └── DEVELOPMENT.md       # Branches, PRs, CI, Copilot e releases
+│   ├── DEVELOPMENT.md       # Branches, PRs, CI, Copilot e releases
+│   └── engineering/         # Métricas de uso de IA por PR
+├── scripts/                 # Automação local e seus testes
 ├── TODO.md                  # Pendências priorizadas e critérios para produção
 ├── compose.yaml             # Stack local completo
 ├── .env.example             # Exemplo de variáveis do Compose
