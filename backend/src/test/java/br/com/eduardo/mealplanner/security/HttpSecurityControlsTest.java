@@ -54,7 +54,7 @@ class HttpSecurityControlsTest {
 
 	@Test
 	void rejectsOversizedRequestBodyWith413() throws Exception {
-		var oversizedDescription = "x".repeat(400);
+		String oversizedDescription = "x".repeat(400);
 
 		mockMvc.perform(post("/api/v1/ingredients")
 				.with(request -> withRemoteAddress(request, "198.51.100.20"))
@@ -82,7 +82,8 @@ class HttpSecurityControlsTest {
 				.with(user("user@example.com").roles("USER")))
 				.andExpect(status().isTooManyRequests())
 				.andExpect(header().exists(HttpHeaders.RETRY_AFTER))
-				.andExpect(jsonPath("$.code").value("RATE_LIMIT_EXCEEDED"));
+				.andExpect(jsonPath("$.code").value("RATE_LIMIT_EXCEEDED"))
+				.andExpect(jsonPath("$.details").isMap());
 	}
 
 	@Test

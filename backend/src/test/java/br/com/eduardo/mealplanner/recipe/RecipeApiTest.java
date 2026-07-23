@@ -1,5 +1,6 @@
 package br.com.eduardo.mealplanner.recipe;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +11,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import br.com.eduardo.mealplanner.TestcontainersConfiguration;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,13 +21,16 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class RecipeApiTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private EntityManagerFactory entityManagerFactory;
 
 	@Test
 	void createsAndRetrievesRecipeWithQuantitiesAndOrderedPreparationSteps() throws Exception {
@@ -93,7 +99,7 @@ class RecipeApiTest {
 
 		mockMvc.perform(get("/api/v1/recipes").with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].name").value("Ensopado de lentilha"));
+				.andExpect(jsonPath("$.content[?(@.name == 'Ensopado de lentilha')]").exists());
 
 		var updated = recipeRequest("Ensopado especial de lentilha", ingredientId,
 				"Deixe a lentilha de molho.", "Cozinhe até ficar macia.");
@@ -113,6 +119,66 @@ class RecipeApiTest {
 				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
 	}
 
+	@Test
+	void listsRecipesWithStablePaginationAndConstantQueryCount() throws Exception {
+		long ingredientId = createIngredient("Ingrediente para paginação de receitas", "GRAM");
+		createRecipe("00 Receita paginada A", ingredientId);
+		createRecipe("00 Receita paginada B", ingredientId);
+		createRecipe("00 Receita paginada C", ingredientId);
+
+		var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+		statistics.clear();
+
+		mockMvc.perform(get("/api/v1/recipes?page=0&size=2")
+				.with(user("test@example.com").roles("USER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content.length()").value(2))
+				.andExpect(jsonPath("$.content[0].name").value("00 Receita paginada A"))
+				.andExpect(jsonPath("$.content[1].name").value("00 Receita paginada B"))
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(2))
+				.andExpect(jsonPath("$.totalElements").isNumber())
+				.andExpect(jsonPath("$.totalPages").isNumber())
+				.andExpect(jsonPath("$.hasNext").value(true));
+
+		assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(2);
+	}
+
+	@Test
+	void rejectsRecipePagesLargerThanTheConfiguredMaximum() throws Exception {
+		mockMvc.perform(get("/api/v1/recipes?size=101")
+				.with(user("test@example.com").roles("USER")))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void reportsAllMissingIngredientsInOneValidationResult() throws Exception {
+		var request = """
+				{
+				  "name": "Receita com ingredientes ausentes",
+				  "servings": 2,
+				  "preparationTimeMinutes": 10,
+				  "ingredients": [
+				    { "ingredientId": 999998, "quantity": 1, "unit": "UNIT" },
+				    { "ingredientId": 999999, "quantity": 2, "unit": "UNIT" }
+				  ],
+				  "preparationSteps": ["Não deve ser persistida."]
+				}
+				""";
+
+		mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("INGREDIENTS_NOT_FOUND"))
+				.andExpect(jsonPath("$.details.missingIngredientIds",
+						org.hamcrest.Matchers.containsInAnyOrder(999998, 999999)))
+				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("999998")))
+				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("999999")));
+	}
+
 	private String recipeRequest(String name, long ingredientId, String... steps) {
 		var stepJson = java.util.Arrays.stream(steps)
 				.map(step -> "\"" + step + "\"")
@@ -130,6 +196,15 @@ class RecipeApiTest {
 				  "preparationSteps": [%s]
 				}
 				""".formatted(name, ingredientId, stepJson);
+	}
+
+	private void createRecipe(String name, long ingredientId) throws Exception {
+		mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(recipeRequest(name, ingredientId, "Prepare a receita.")))
+				.andExpect(status().isCreated());
 	}
 
 	private long createIngredient(String name, String unit) throws Exception {

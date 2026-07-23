@@ -76,7 +76,7 @@ class IngredientApiTest {
 
 		mockMvc.perform(get("/api/v1/ingredients").with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[?(@.name == 'Tomate italiano')]").exists());
+				.andExpect(jsonPath("$.content[?(@.name == 'Tomate italiano')]").exists());
 
 		var update = """
 				{
@@ -140,6 +140,74 @@ class IngredientApiTest {
 				.content(duplicate))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("DUPLICATE_RESOURCE"));
+	}
+
+	@Test
+	void searchesIngredientsByLiteralNameFragmentWithStablePagination() throws Exception {
+		createMinimalIngredient("00 Busca P1 Abacate");
+		createMinimalIngredient("00 Busca P1 Abacaxi");
+		createMinimalIngredient("00 Busca P1 Abóbora");
+		createMinimalIngredient("Ingrediente fora da busca");
+		createMinimalIngredient("Peito de frango");
+		createMinimalIngredient("% Ingrediente literal");
+		createMinimalIngredient("_ Ingrediente literal");
+		createMinimalIngredient("! Ingrediente literal");
+
+		mockMvc.perform(get("/api/v1/ingredients")
+				.param("q", "00 Busca P1")
+				.param("page", "0")
+				.param("size", "2")
+				.with(user("test@example.com").roles("USER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content.length()").value(2))
+				.andExpect(jsonPath("$.content[0].name").value("00 Busca P1 Abacate"))
+				.andExpect(jsonPath("$.content[1].name").value("00 Busca P1 Abacaxi"))
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(2))
+				.andExpect(jsonPath("$.totalElements").value(3))
+				.andExpect(jsonPath("$.totalPages").value(2))
+				.andExpect(jsonPath("$.hasNext").value(true))
+				.andExpect(jsonPath("$.hasPrevious").value(false));
+
+		mockMvc.perform(get("/api/v1/ingredients")
+				.with(user("test@example.com").roles("USER"))
+				.param("q", "%")
+				.param("page", "0")
+				.param("size", "20"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].name").value("% Ingrediente literal"));
+
+		assertLiteralSearch("frango", "Peito de frango");
+		assertLiteralSearch("_", "_ Ingrediente literal");
+		assertLiteralSearch("!", "! Ingrediente literal");
+	}
+
+	@Test
+	void exposesStableNamesForInvalidPaginationAndSearchParameters() throws Exception {
+		assertInvalidQueryParameter("size", "101");
+		assertInvalidQueryParameter("page", "-1");
+		assertInvalidQueryParameter("q", "x".repeat(101));
+	}
+
+	private void assertInvalidQueryParameter(String parameter, String value) throws Exception {
+		mockMvc.perform(get("/api/v1/ingredients")
+				.with(user("test@example.com").roles("USER"))
+				.param(parameter, value))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors." + parameter).isNotEmpty());
+	}
+
+	private void assertLiteralSearch(String query, String expectedName) throws Exception {
+		mockMvc.perform(get("/api/v1/ingredients")
+				.with(user("test@example.com").roles("USER"))
+				.param("q", query)
+				.param("page", "0")
+				.param("size", "20"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].name").value(expectedName));
 	}
 
 	private String createMinimalIngredient(String name) throws Exception {

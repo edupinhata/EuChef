@@ -93,7 +93,7 @@ Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSR
 
 | Método   | Caminho                    | Resultado                 |
 | -------- | -------------------------- | ------------------------- |
-| `GET`    | `/api/v1/ingredients`      | `200`, lista              |
+| `GET`    | `/api/v1/ingredients`      | `200`, página             |
 | `POST`   | `/api/v1/ingredients`      | `201`, ingrediente criado |
 | `GET`    | `/api/v1/ingredients/{id}` | `200`                     |
 | `PUT`    | `/api/v1/ingredients/{id}` | `200`                     |
@@ -111,19 +111,39 @@ Exemplo mínimo de criação:
 
 Nutrição por 100 g e sazonalidade são opcionais e aparecem no schema OpenAPI local.
 
+A listagem aceita `page` (base zero, padrão `0`), `size` (padrão `20`, máximo `100`) e `q` (trecho literal do nome, até 100 caracteres). A pesquisa não diferencia maiúsculas e minúsculas; `%`, `_` e `!` são tratados literalmente. Exemplo: `GET /api/v1/ingredients?q=frango&page=0&size=20` encontra `Peito de frango`. Um índice trigram PostgreSQL sustenta a busca por trecho.
+
 ## Receitas
 
 Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSRF.
 
 | Método   | Caminho                | Resultado             |
 | -------- | ---------------------- | --------------------- |
-| `GET`    | `/api/v1/recipes`      | `200`, lista          |
+| `GET`    | `/api/v1/recipes`      | `200`, página de resumos |
 | `POST`   | `/api/v1/recipes`      | `201`, receita criada |
 | `GET`    | `/api/v1/recipes/{id}` | `200`                 |
 | `PUT`    | `/api/v1/recipes/{id}` | `200`                 |
 | `DELETE` | `/api/v1/recipes/{id}` | `204`                 |
 
 Ingredientes e receitas formam, nesta etapa, um catálogo compartilhado entre usuários autenticados. Propriedade e compartilhamento por autor permanecem planejados no P3 do [`TODO.md`](../TODO.md).
+
+A listagem aceita `page` (base zero, padrão `0`) e `size` (padrão `20`, máximo `100`), com ordenação estável por nome e ID. Cada item é um resumo sem `ingredients` e `preparationSteps`; obtenha o agregado completo em `GET /api/v1/recipes/{id}`.
+
+Listagens paginadas usam o envelope estável:
+
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 20,
+  "totalElements": 0,
+  "totalPages": 0,
+  "hasNext": false,
+  "hasPrevious": false
+}
+```
+
+Ao criar ou atualizar uma receita, todos os IDs de ingredientes são validados em lote. IDs ausentes retornam `404 INGREDIENTS_NOT_FOUND`; a mensagem continua legível para humanos e `details.missingIngredientIds` contém a lista numérica para clientes.
 
 ## Administração e documentação interativa
 
@@ -147,6 +167,17 @@ Erros gerados pela API e pelos filtros usam:
   "timestamp": "2026-07-22T12:00:00Z",
   "fieldErrors": {
     "email": "deve ser um endereço de e-mail válido"
+  },
+  "details": {}
+}
+```
+
+As chaves de `fieldErrors` usam os nomes públicos dos campos e parâmetros, como `email`, `page`, `size` e `q`, sem nomes internos de métodos. Informações estruturadas específicas do erro usam `details`; em `INGREDIENTS_NOT_FOUND`, por exemplo:
+
+```json
+{
+  "details": {
+    "missingIngredientIds": [999998, 999999]
   }
 }
 ```
@@ -214,7 +245,16 @@ As migrações atuais são:
 
 1. ingredientes;
 2. receitas, ingredientes associados e etapas;
-3. usuários da aplicação.
+3. usuários da aplicação;
+4. índice de busca por trecho no nome dos ingredientes.
+
+O índice da migração 4 exige a extensão PostgreSQL `pg_trgm`. Em produção, um DBA ou a infraestrutura como código deve executar `CREATE EXTENSION IF NOT EXISTS pg_trgm` antes da aplicação da migração; a credencial normal do backend/Flyway não deve receber `CREATE` no banco apenas para instalar extensões. O Compose local pré-provisiona a extensão pelo script `db/bootstrap/postgres_extensions.sql` somente ao inicializar um volume novo, e os Testcontainers executam o mesmo bootstrap antes do Flyway.
+
+Em um volume local criado antes desse bootstrap, provisione a extensão uma vez antes de atualizar o backend:
+
+```bash
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"'
+```
 
 O Hibernate apenas valida o schema (`ddl-auto=validate`). Os testes usam PostgreSQL real via Testcontainers:
 

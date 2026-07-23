@@ -37,6 +37,22 @@ export interface Ingredient extends IngredientPayload {
   updatedAt: string;
 }
 
+export interface PageQuery {
+  q?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface PagedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 export interface RecipeIngredientPayload {
   ingredientId: number;
   quantity: number;
@@ -73,6 +89,8 @@ export interface Recipe extends Omit<
   updatedAt: string;
 }
 
+export type RecipeSummary = Omit<Recipe, "ingredients" | "preparationSteps">;
+
 export interface AuthenticatedUser {
   id: number;
   displayName: string;
@@ -99,4 +117,5 @@ export interface ApiErrorBody {
   code: string;
   message: string;
   fieldErrors?: Record<string, string>;
+  details?: Record<string, unknown>;
 }

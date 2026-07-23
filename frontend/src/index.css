@@ -562,6 +562,48 @@ p {
   padding: 18px 0;
 }
 
+.catalog-toolbar {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 20px;
+}
+
+.catalog-toolbar label {
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.catalog-toolbar input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--surface-strong);
+  font: inherit;
+}
+
+.catalog-toolbar input:focus {
+  border-color: var(--forest);
+  outline: 3px solid rgb(40 94 73 / 14%);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.pagination .text-button:disabled {
+  color: #9b9b93;
+}
+
 .card-list {
   display: grid;
   gap: 14px;

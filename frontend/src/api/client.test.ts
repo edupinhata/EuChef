@@ -35,6 +35,31 @@ afterEach(() => {
 });
 
 describe("api client", () => {
+  it("requests a filtered ingredient page", async () => {
+    const page = {
+      content: [ingredient],
+      page: 2,
+      size: 20,
+      totalElements: 41,
+      totalPages: 3,
+      hasNext: false,
+      hasPrevious: true,
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => page,
+    } as Response);
+
+    await expect(
+      api.ingredients.list({ q: "Morango fresco", page: 2, size: 20 }),
+    ).resolves.toEqual(page);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/ingredients?q=Morango+fresco&page=2&size=20",
+      expect.objectContaining({ credentials: "same-origin" }),
+    );
+  });
+
   it("sends session, CSRF and a complete ingredient", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -76,11 +101,12 @@ describe("api client", () => {
       .mockResolvedValueOnce(csrfResponse)
       .mockResolvedValueOnce({
         ok: false,
-        status: 409,
+        status: 404,
         json: async () => ({
-          code: "DUPLICATE_RESOURCE",
-          message: "Já existe um ingrediente com este nome",
+          code: "INGREDIENTS_NOT_FOUND",
+          message: "Ingredientes não encontrados: [999998, 999999]",
           fieldErrors: {},
+          details: { missingIngredientIds: [999998, 999999] },
         }),
       } as Response);
 
@@ -88,8 +114,9 @@ describe("api client", () => {
       api.ingredients.create({ name: "Morango", defaultUnit: "GRAM" }),
     ).rejects.toEqual(
       expect.objectContaining({
-        message: "Já existe um ingrediente com este nome",
-        status: 409,
+        message: "Ingredientes não encontrados: [999998, 999999]",
+        status: 404,
+        details: { missingIngredientIds: [999998, 999999] },
       }),
     );
   });

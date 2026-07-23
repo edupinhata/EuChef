@@ -5,8 +5,11 @@ import type {
   Ingredient,
   IngredientPayload,
   LoginPayload,
+  PagedResponse,
+  PageQuery,
   Recipe,
   RecipePayload,
+  RecipeSummary,
   RegistrationPayload,
 } from "./types";
 
@@ -14,18 +17,21 @@ export class ApiClientError extends Error {
   public readonly status: number;
   public readonly code: string;
   public readonly fieldErrors: Record<string, string>;
+  public readonly details: Record<string, unknown>;
 
   constructor(
     message: string,
     status: number,
     code = "REQUEST_ERROR",
     fieldErrors: Record<string, string> = {},
+    details: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = "ApiClientError";
     this.status = status;
     this.code = code;
     this.fieldErrors = fieldErrors;
+    this.details = details;
   }
 }
 
@@ -47,6 +53,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
       response.status,
       error.code,
       error.fieldErrors,
+      error.details,
     );
   }
 
@@ -101,9 +108,19 @@ async function request<T>(
   return parseResponse<T>(response);
 }
 
-function resource<T, P>(path: string) {
+function pagePath(path: string, query: PageQuery) {
+  const search = new URLSearchParams();
+  if (query.q) search.set("q", query.q);
+  if (query.page !== undefined) search.set("page", String(query.page));
+  if (query.size !== undefined) search.set("size", String(query.size));
+  const serialized = search.toString();
+  return serialized ? `${path}?${serialized}` : path;
+}
+
+function resource<T, P, L = T>(path: string) {
   return {
-    list: () => request<T[]>(path),
+    list: (query: PageQuery = {}) =>
+      request<PagedResponse<L>>(pagePath(path, query)),
     get: (id: number) => request<T>(`${path}/${id}`),
     create: (payload: P) =>
       request<T>(path, { method: "POST", body: JSON.stringify(payload) }),
@@ -136,7 +153,7 @@ export const api = {
     },
   },
   ingredients: resource<Ingredient, IngredientPayload>("/api/v1/ingredients"),
-  recipes: resource<Recipe, RecipePayload>("/api/v1/recipes"),
+  recipes: resource<Recipe, RecipePayload, RecipeSummary>("/api/v1/recipes"),
 };
 
 export function resetApiSecurityStateForTests() {

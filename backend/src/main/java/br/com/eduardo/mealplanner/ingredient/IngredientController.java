@@ -1,9 +1,14 @@
 package br.com.eduardo.mealplanner.ingredient;
 
+import br.com.eduardo.mealplanner.web.PagedResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import java.net.URI;
-import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,11 +16,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/v1/ingredients")
+@Validated
 class IngredientController {
 
 	private final IngredientService service;
@@ -26,7 +33,7 @@ class IngredientController {
 
 	@PostMapping
 	ResponseEntity<IngredientResponse> create(@Valid @RequestBody IngredientRequest request) {
-		var response = service.create(request);
+		IngredientResponse response = service.create(request);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}")
 				.buildAndExpand(response.id())
@@ -35,8 +42,11 @@ class IngredientController {
 	}
 
 	@GetMapping
-	List<IngredientResponse> list() {
-		return service.list();
+	PagedResponse<IngredientResponse> list(
+			@RequestParam(required = false) @Size(max = 100) String q,
+			@RequestParam(defaultValue = "0") @PositiveOrZero int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+		return service.list(q, page, size);
 	}
 
 	@GetMapping("/{id}")

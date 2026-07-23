@@ -9,7 +9,7 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 | Prioridade | Tema                                       | Situação                                 |
 | ---------- | ------------------------------------------ | ---------------------------------------- |
 | P0         | Segurança da aplicação                     | Controles concluídos; produção bloqueada |
-| P1         | Desempenho e consumo de recursos           | Necessário antes de crescer              |
+| P1         | Desempenho e consumo de recursos           | Concluído                                |
 | P1         | Correções funcionais e cobertura de testes | Necessário para confiabilidade           |
 | P2         | Funcionalidades do produto                 | Necessário para completar o MVP          |
 | P2         | Manutenibilidade                           | Melhoria contínua                        |
@@ -40,18 +40,24 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 
 ## P1 — Desempenho e complexidade computacional
 
-- [ ] **Eliminar o N+1 na listagem de receitas.**
-  - Carregar receitas, ingredientes e passos com estratégia explícita e limitada.
-  - Evitar uma consulta individual para cada ingrediente associado.
-  - Adicionar teste que limite ou monitore a quantidade de consultas.
-- [ ] **Adicionar paginação à listagem de receitas.**
+- [x] **Eliminar o N+1 na listagem de receitas.**
+  - Retornar resumos sem materializar ingredientes e passos na listagem.
+  - Manter o agregado completo no endpoint de detalhe e resolver seus ingredientes em lote.
+  - Monitorar a listagem com Hibernate Statistics e limite de duas instruções SQL.
+- [x] **Adicionar paginação à listagem de receitas.**
   - Definir tamanho padrão e máximo por página.
   - Usar ordenação estável.
   - Atualizar o contrato OpenAPI e o frontend.
-- [ ] **Adicionar paginação ou busca incremental aos ingredientes.**
+- [x] **Adicionar paginação ou busca incremental aos ingredientes.**
   - Evitar carregar e renderizar toda a tabela de uma vez.
   - Definir limite máximo por resposta.
-- [ ] **Validar ingredientes de receitas em lote.**
+  - Pesquisar trechos literais do nome com índice trigram PostgreSQL.
+- [ ] **Definir a estratégia de desempenho para buscas com menos de três caracteres.**
+  - `pg_trgm` pode escolher varredura sequencial para padrões muito curtos.
+  - Decidir entre aceitar o custo, exigir um mínimo ou adotar um índice complementar com base em métricas reais.
+- [ ] **Preparar criação e reconstrução de índices sem bloqueio para tabelas grandes.**
+  - Executar a operação concorrente fora da migração transacional quando o volume de produção justificar.
+- [x] **Validar ingredientes de receitas em lote.**
   - Substituir até 100 consultas sequenciais por uma busca única pelos IDs.
   - Informar claramente quais IDs não existem.
 
@@ -69,12 +75,12 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 
 - [ ] Cobrir payload inválido de receita.
 - [ ] Cobrir listas vazias e listas acima do limite de 100 itens.
-- [ ] Cobrir ingrediente inexistente em uma receita.
+- [x] Cobrir ingrediente inexistente em uma receita.
 - [ ] Cobrir nome duplicado de receita.
 - [ ] Cobrir limites numéricos e textuais.
 - [ ] Cobrir exclusão de ingrediente referenciado por receita.
 - [ ] Cobrir comportamento concorrente relevante para nomes únicos.
-- [ ] Adicionar teste contra regressão de N+1 e consultas excessivas.
+- [x] Adicionar teste contra regressão de N+1 e consultas excessivas.
 
 ### Frontend
 
@@ -101,6 +107,13 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 
 ## P2 — Manutenibilidade
 
+- [ ] **Adotar o namespace Java definitivo do EuChef em uma PR dedicada.**
+  - Substituir `br.com.eduardo.mealplanner` e alinhar o `groupId` Maven.
+  - Definir o namespace somente após confirmar a identidade/domínio durável do produto.
+- [ ] **Concluir a padronização de tipos locais Java explícitos.**
+  - Remover os `var` legados restantes, especialmente nos testes, sem misturar a limpeza com mudanças funcionais.
+- [ ] **Reavaliar fixtures comuns para testes de ingredientes.**
+  - Extrair um helper compartilhado somente quando houver uma terceira necessidade equivalente e ganho real sobre a configuração local de `MockMvc`.
 - [ ] **Reduzir a complexidade do formulário de ingredientes.**
   - Extrair transformação de payload para função testável.
   - Avaliar componentes menores para nutrição e sazonalidade.
