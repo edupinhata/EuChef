@@ -117,4 +117,5 @@ export interface ApiErrorBody {
   code: string;
   message: string;
   fieldErrors?: Record<string, string>;
+  details?: Record<string, unknown>;
 }

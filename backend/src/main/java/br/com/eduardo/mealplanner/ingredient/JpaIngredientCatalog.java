@@ -2,6 +2,7 @@ package br.com.eduardo.mealplanner.ingredient;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import org.springframework.stereotype.Service;
@@ -17,13 +18,13 @@ class JpaIngredientCatalog implements IngredientCatalog {
 
 	@Override
 	public Map<Long, IngredientReference> requireAll(Collection<Long> ids) {
-		var requestedIds = new TreeSet<>(ids);
+		TreeSet<Long> requestedIds = new TreeSet<>(ids);
 		Map<Long, IngredientReference> references = new LinkedHashMap<>();
 		repository.findAllById(requestedIds).forEach(ingredient -> references.put(
 				ingredient.id(),
 				new IngredientReference(ingredient.id(), ingredient.name(), ingredient.defaultUnit())));
 
-		var missingIds = requestedIds.stream().filter(id -> !references.containsKey(id)).toList();
+		List<Long> missingIds = requestedIds.stream().filter(id -> !references.containsKey(id)).toList();
 		if (!missingIds.isEmpty()) {
 			throw new IngredientsNotFoundException(missingIds);
 		}

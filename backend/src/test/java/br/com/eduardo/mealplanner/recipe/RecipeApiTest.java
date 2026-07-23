@@ -173,6 +173,8 @@ class RecipeApiTest {
 				.content(request))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("INGREDIENTS_NOT_FOUND"))
+				.andExpect(jsonPath("$.details.missingIngredientIds",
+						org.hamcrest.Matchers.containsInAnyOrder(999998, 999999)))
 				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("999998")))
 				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("999999")));
 	}

@@ -52,6 +52,7 @@ describe("IngredientsPage", () => {
       name: "Buscar ingredientes",
     });
     expect(searchbox).toHaveAttribute("maxLength", "100");
+    expect(searchbox).toHaveAttribute("placeholder", "Digite parte do nome");
     await user.type(searchbox, "Tom");
     expect(list).not.toHaveBeenCalledWith({ q: "T", page: 0, size: 20 });
     expect(list).not.toHaveBeenCalledWith({ q: "To", page: 0, size: 20 });

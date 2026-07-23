@@ -101,11 +101,12 @@ describe("api client", () => {
       .mockResolvedValueOnce(csrfResponse)
       .mockResolvedValueOnce({
         ok: false,
-        status: 409,
+        status: 404,
         json: async () => ({
-          code: "DUPLICATE_RESOURCE",
-          message: "Já existe um ingrediente com este nome",
+          code: "INGREDIENTS_NOT_FOUND",
+          message: "Ingredientes não encontrados: [999998, 999999]",
           fieldErrors: {},
+          details: { missingIngredientIds: [999998, 999999] },
         }),
       } as Response);
 
@@ -113,8 +114,9 @@ describe("api client", () => {
       api.ingredients.create({ name: "Morango", defaultUnit: "GRAM" }),
     ).rejects.toEqual(
       expect.objectContaining({
-        message: "Já existe um ingrediente com este nome",
-        status: 409,
+        message: "Ingredientes não encontrados: [999998, 999999]",
+        status: 404,
+        details: { missingIngredientIds: [999998, 999999] },
       }),
     );
   });

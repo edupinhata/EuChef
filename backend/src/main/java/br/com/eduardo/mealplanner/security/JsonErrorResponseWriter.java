@@ -15,7 +15,7 @@ final class JsonErrorResponseWriter {
 		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 		response.setContentType("application/json");
 		response.getWriter().write("""
-				{"code":"%s","message":"%s","timestamp":"%s","fieldErrors":{}}
+				{"code":"%s","message":"%s","timestamp":"%s","fieldErrors":{},"details":{}}
 				""".formatted(code, message, Instant.now()).strip());
 	}
 }

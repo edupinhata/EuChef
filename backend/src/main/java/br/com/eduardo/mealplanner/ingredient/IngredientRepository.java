@@ -9,10 +9,10 @@ import org.springframework.data.repository.query.Param;
 interface IngredientRepository extends JpaRepository<Ingredient, Long> {
 	@Query("""
 			select ingredient from Ingredient ingredient
-			where lower(ingredient.name) like concat(lower(:query), '%') escape '!'
+			where lower(ingredient.name) like concat('%', lower(:query), '%') escape '!'
 			order by lower(ingredient.name), ingredient.id
 			""")
-	Page<Ingredient> searchByNamePrefix(@Param("query") String query, Pageable pageable);
+	Page<Ingredient> searchByNameFragment(@Param("query") String query, Pageable pageable);
 	boolean existsByNameIgnoreCase(String name);
 	boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

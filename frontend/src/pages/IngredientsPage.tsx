@@ -119,7 +119,7 @@ export function IngredientsPage() {
           type="search"
           maxLength={100}
           value={search}
-          placeholder="Digite o início do nome"
+          placeholder="Digite parte do nome"
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
@@ -178,7 +178,7 @@ export function IngredientsPage() {
             </h2>
             <p>
               {debouncedSearch
-                ? "Tente buscar pelo início de outro nome."
+                ? "Tente buscar por outra parte do nome."
                 : "Comece pelos itens que aparecem com frequência nas suas receitas."}
             </p>
           </div>

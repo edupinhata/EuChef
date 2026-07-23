@@ -17,18 +17,21 @@ export class ApiClientError extends Error {
   public readonly status: number;
   public readonly code: string;
   public readonly fieldErrors: Record<string, string>;
+  public readonly details: Record<string, unknown>;
 
   constructor(
     message: string,
     status: number,
     code = "REQUEST_ERROR",
     fieldErrors: Record<string, string> = {},
+    details: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = "ApiClientError";
     this.status = status;
     this.code = code;
     this.fieldErrors = fieldErrors;
+    this.details = details;
   }
 }
 
@@ -50,6 +53,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
       response.status,
       error.code,
       error.fieldErrors,
+      error.details,
     );
   }
 

@@ -25,10 +25,10 @@ class RecipeService {
 
 	@Transactional
 	RecipeResponse create(RecipeRequest request) {
-		var name = normalizeName(request.name());
+		String name = normalizeName(request.name());
 		ensureUniqueName(name, null);
-		var ingredientReferences = validateIngredients(request);
-		var recipe = new Recipe(name, normalize(request.description()), request.servings(),
+		Map<Long, IngredientReference> ingredientReferences = validateIngredients(request);
+		Recipe recipe = new Recipe(name, normalize(request.description()), request.servings(),
 				request.preparationTimeMinutes());
 		addContents(recipe, request);
 		return toResponse(repository.saveAndFlush(recipe), ingredientReferences);
@@ -36,7 +36,7 @@ class RecipeService {
 
 	@Transactional(readOnly = true)
 	PagedResponse<RecipeSummaryResponse> list(int page, int size) {
-		var pageRequest = PageRequest.of(page, size, Sort.by("name").ascending().and(Sort.by("id")));
+		PageRequest pageRequest = PageRequest.of(page, size, Sort.by("name").ascending().and(Sort.by("id")));
 		return PagedResponse.from(repository.findAll(pageRequest).map(this::toSummary));
 	}
 
@@ -47,10 +47,10 @@ class RecipeService {
 
 	@Transactional
 	RecipeResponse update(Long id, RecipeRequest request) {
-		var recipe = find(id);
-		var name = normalizeName(request.name());
+		Recipe recipe = find(id);
+		String name = normalizeName(request.name());
 		ensureUniqueName(name, id);
-		var ingredientReferences = validateIngredients(request);
+		Map<Long, IngredientReference> ingredientReferences = validateIngredients(request);
 
 		recipe.replaceDetails(name, normalize(request.description()), request.servings(),
 				request.preparationTimeMinutes());
@@ -78,7 +78,7 @@ class RecipeService {
 
 	private void addContents(Recipe recipe, RecipeRequest request) {
 		for (int index = 0; index < request.ingredients().size(); index++) {
-			var item = request.ingredients().get(index);
+			RecipeRequest.RecipeIngredientRequest item = request.ingredients().get(index);
 			recipe.addIngredient(item.ingredientId(), index + 1, item.quantity(), item.unit(),
 					normalize(item.notes()));
 		}
@@ -88,7 +88,7 @@ class RecipeService {
 	}
 
 	private RecipeResponse toResponse(Recipe recipe) {
-		var ingredientReferences = ingredientCatalog.requireAll(recipe.ingredients().stream()
+		Map<Long, IngredientReference> ingredientReferences = ingredientCatalog.requireAll(recipe.ingredients().stream()
 				.map(RecipeIngredient::ingredientId)
 				.toList());
 		return toResponse(recipe, ingredientReferences);
@@ -97,12 +97,12 @@ class RecipeService {
 	private RecipeResponse toResponse(Recipe recipe, Map<Long, IngredientReference> ingredientReferences) {
 		List<RecipeResponse.RecipeIngredientResponse> ingredients = recipe.ingredients().stream()
 				.map(item -> {
-					var ingredient = ingredientReferences.get(item.ingredientId());
+					IngredientReference ingredient = ingredientReferences.get(item.ingredientId());
 					return new RecipeResponse.RecipeIngredientResponse(item.ingredientId(), ingredient.name(),
 							item.quantity(), item.unit(), item.notes());
 				})
 				.toList();
-		var steps = recipe.steps().stream()
+		List<RecipeResponse.RecipeStepResponse> steps = recipe.steps().stream()
 				.map(step -> new RecipeResponse.RecipeStepResponse(step.position(), step.instruction()))
 				.toList();
 		return new RecipeResponse(recipe.id(), recipe.name(), recipe.description(), recipe.servings(),
@@ -115,7 +115,7 @@ class RecipeService {
 	}
 
 	private void ensureUniqueName(String name, Long currentId) {
-		var duplicate = currentId == null
+		boolean duplicate = currentId == null
 				? repository.existsByNameIgnoreCase(name)
 				: repository.existsByNameIgnoreCaseAndIdNot(name, currentId);
 		if (duplicate) {

@@ -3,6 +3,7 @@ package br.com.eduardo.mealplanner.ingredient;
 import jakarta.persistence.EntityNotFoundException;
 import br.com.eduardo.mealplanner.web.DuplicateResourceException;
 import br.com.eduardo.mealplanner.web.PagedResponse;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,17 +19,17 @@ class IngredientService {
 
 	@Transactional
 	IngredientResponse create(IngredientRequest request) {
-		var name = normalizeName(request.name());
+		String name = normalizeName(request.name());
 		ensureUniqueName(name, null);
-		var ingredient = new Ingredient(name, normalize(request.description()),
+		Ingredient ingredient = new Ingredient(name, normalize(request.description()),
 				request.defaultUnit(), toNutrition(request), toSeasonality(request));
 		return toResponse(repository.saveAndFlush(ingredient));
 	}
 
 	@Transactional(readOnly = true)
 	PagedResponse<IngredientResponse> list(String query, int page, int size) {
-		var normalizedQuery = escapeLikePattern(query == null ? "" : query.trim());
-		var result = repository.searchByNamePrefix(normalizedQuery, PageRequest.of(page, size))
+		String normalizedQuery = escapeLikePattern(query == null ? "" : query.trim());
+		Page<IngredientResponse> result = repository.searchByNameFragment(normalizedQuery, PageRequest.of(page, size))
 				.map(this::toResponse);
 		return PagedResponse.from(result);
 	}
@@ -40,8 +41,8 @@ class IngredientService {
 
 	@Transactional
 	IngredientResponse update(Long id, IngredientRequest request) {
-		var ingredient = find(id);
-		var name = normalizeName(request.name());
+		Ingredient ingredient = find(id);
+		String name = normalizeName(request.name());
 		ensureUniqueName(name, id);
 		ingredient.update(name, normalize(request.description()), request.defaultUnit(),
 				toNutrition(request), toSeasonality(request));
@@ -74,21 +75,23 @@ class IngredientService {
 	}
 
 	private IngredientResponse toResponse(Ingredient ingredient) {
-		var nutrition = ingredient.nutritionFacts() == null ? null : new IngredientResponse.NutritionResponse(
+		IngredientResponse.NutritionResponse nutrition = ingredient.nutritionFacts() == null
+				? null : new IngredientResponse.NutritionResponse(
 				ingredient.nutritionFacts().caloriesKcal(),
 				ingredient.nutritionFacts().proteinGrams(),
 				ingredient.nutritionFacts().carbohydrateGrams(),
 				ingredient.nutritionFacts().fatGrams(),
 				ingredient.nutritionFacts().fiberGrams(),
 				ingredient.nutritionFacts().sodiumMilligrams());
-		var seasonality = ingredient.seasonality() == null ? null : new IngredientResponse.SeasonalityResponse(
+		IngredientResponse.SeasonalityResponse seasonality = ingredient.seasonality() == null
+				? null : new IngredientResponse.SeasonalityResponse(
 				ingredient.seasonality().startMonth(), ingredient.seasonality().endMonth());
 		return new IngredientResponse(ingredient.id(), ingredient.name(), ingredient.description(),
 				ingredient.defaultUnit(), nutrition, seasonality, ingredient.createdAt(), ingredient.updatedAt());
 	}
 
 	private void ensureUniqueName(String name, Long currentId) {
-		var duplicate = currentId == null
+		boolean duplicate = currentId == null
 				? repository.existsByNameIgnoreCase(name)
 				: repository.existsByNameIgnoreCaseAndIdNot(name, currentId);
 		if (duplicate) {

@@ -33,7 +33,7 @@ class IngredientController {
 
 	@PostMapping
 	ResponseEntity<IngredientResponse> create(@Valid @RequestBody IngredientRequest request) {
-		var response = service.create(request);
+		IngredientResponse response = service.create(request);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}")
 				.buildAndExpand(response.id())
