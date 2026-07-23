@@ -93,7 +93,7 @@ Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSR
 
 | Método   | Caminho                    | Resultado                 |
 | -------- | -------------------------- | ------------------------- |
-| `GET`    | `/api/v1/ingredients`      | `200`, lista              |
+| `GET`    | `/api/v1/ingredients`      | `200`, página             |
 | `POST`   | `/api/v1/ingredients`      | `201`, ingrediente criado |
 | `GET`    | `/api/v1/ingredients/{id}` | `200`                     |
 | `PUT`    | `/api/v1/ingredients/{id}` | `200`                     |
@@ -111,19 +111,39 @@ Exemplo mínimo de criação:
 
 Nutrição por 100 g e sazonalidade são opcionais e aparecem no schema OpenAPI local.
 
+A listagem aceita `page` (base zero, padrão `0`), `size` (padrão `20`, máximo `100`) e `q` (prefixo de nome, até 100 caracteres). Exemplo: `GET /api/v1/ingredients?q=Arr&page=0&size=20`.
+
 ## Receitas
 
 Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSRF.
 
 | Método   | Caminho                | Resultado             |
 | -------- | ---------------------- | --------------------- |
-| `GET`    | `/api/v1/recipes`      | `200`, lista          |
+| `GET`    | `/api/v1/recipes`      | `200`, página de resumos |
 | `POST`   | `/api/v1/recipes`      | `201`, receita criada |
 | `GET`    | `/api/v1/recipes/{id}` | `200`                 |
 | `PUT`    | `/api/v1/recipes/{id}` | `200`                 |
 | `DELETE` | `/api/v1/recipes/{id}` | `204`                 |
 
 Ingredientes e receitas formam, nesta etapa, um catálogo compartilhado entre usuários autenticados. Propriedade e compartilhamento por autor permanecem planejados no P3 do [`TODO.md`](../TODO.md).
+
+A listagem aceita `page` (base zero, padrão `0`) e `size` (padrão `20`, máximo `100`), com ordenação estável por nome e ID. Cada item é um resumo sem `ingredients` e `preparationSteps`; obtenha o agregado completo em `GET /api/v1/recipes/{id}`.
+
+Listagens paginadas usam o envelope estável:
+
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 20,
+  "totalElements": 0,
+  "totalPages": 0,
+  "hasNext": false,
+  "hasPrevious": false
+}
+```
+
+Ao criar ou atualizar uma receita, todos os IDs de ingredientes são validados em lote. IDs ausentes retornam `404 INGREDIENTS_NOT_FOUND` e a mensagem informa o conjunto ausente.
 
 ## Administração e documentação interativa
 

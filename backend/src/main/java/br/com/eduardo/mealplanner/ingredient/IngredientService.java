@@ -2,7 +2,8 @@ package br.com.eduardo.mealplanner.ingredient;
 
 import jakarta.persistence.EntityNotFoundException;
 import br.com.eduardo.mealplanner.web.DuplicateResourceException;
-import java.util.List;
+import br.com.eduardo.mealplanner.web.PagedResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,8 +26,11 @@ class IngredientService {
 	}
 
 	@Transactional(readOnly = true)
-	List<IngredientResponse> list() {
-		return repository.findAllByOrderByNameAsc().stream().map(this::toResponse).toList();
+	PagedResponse<IngredientResponse> list(String query, int page, int size) {
+		var normalizedQuery = escapeLikePattern(query == null ? "" : query.trim());
+		var result = repository.searchByNamePrefix(normalizedQuery, PageRequest.of(page, size))
+				.map(this::toResponse);
+		return PagedResponse.from(result);
 	}
 
 	@Transactional(readOnly = true)
@@ -98,5 +102,9 @@ class IngredientService {
 
 	private String normalize(String value) {
 		return value == null || value.isBlank() ? null : value.trim();
+	}
+
+	private String escapeLikePattern(String value) {
+		return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
 	}
 }

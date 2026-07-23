@@ -9,7 +9,7 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 | Prioridade | Tema                                       | Situação                                 |
 | ---------- | ------------------------------------------ | ---------------------------------------- |
 | P0         | Segurança da aplicação                     | Controles concluídos; produção bloqueada |
-| P1         | Desempenho e consumo de recursos           | Necessário antes de crescer              |
+| P1         | Desempenho e consumo de recursos           | Concluído                                |
 | P1         | Correções funcionais e cobertura de testes | Necessário para confiabilidade           |
 | P2         | Funcionalidades do produto                 | Necessário para completar o MVP          |
 | P2         | Manutenibilidade                           | Melhoria contínua                        |
@@ -40,18 +40,18 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 
 ## P1 — Desempenho e complexidade computacional
 
-- [ ] **Eliminar o N+1 na listagem de receitas.**
-  - Carregar receitas, ingredientes e passos com estratégia explícita e limitada.
-  - Evitar uma consulta individual para cada ingrediente associado.
-  - Adicionar teste que limite ou monitore a quantidade de consultas.
-- [ ] **Adicionar paginação à listagem de receitas.**
+- [x] **Eliminar o N+1 na listagem de receitas.**
+  - Retornar resumos sem materializar ingredientes e passos na listagem.
+  - Manter o agregado completo no endpoint de detalhe e resolver seus ingredientes em lote.
+  - Monitorar a listagem com Hibernate Statistics e limite de duas instruções SQL.
+- [x] **Adicionar paginação à listagem de receitas.**
   - Definir tamanho padrão e máximo por página.
   - Usar ordenação estável.
   - Atualizar o contrato OpenAPI e o frontend.
-- [ ] **Adicionar paginação ou busca incremental aos ingredientes.**
+- [x] **Adicionar paginação ou busca incremental aos ingredientes.**
   - Evitar carregar e renderizar toda a tabela de uma vez.
   - Definir limite máximo por resposta.
-- [ ] **Validar ingredientes de receitas em lote.**
+- [x] **Validar ingredientes de receitas em lote.**
   - Substituir até 100 consultas sequenciais por uma busca única pelos IDs.
   - Informar claramente quais IDs não existem.
 
@@ -69,12 +69,12 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 
 - [ ] Cobrir payload inválido de receita.
 - [ ] Cobrir listas vazias e listas acima do limite de 100 itens.
-- [ ] Cobrir ingrediente inexistente em uma receita.
+- [x] Cobrir ingrediente inexistente em uma receita.
 - [ ] Cobrir nome duplicado de receita.
 - [ ] Cobrir limites numéricos e textuais.
 - [ ] Cobrir exclusão de ingrediente referenciado por receita.
 - [ ] Cobrir comportamento concorrente relevante para nomes únicos.
-- [ ] Adicionar teste contra regressão de N+1 e consultas excessivas.
+- [x] Adicionar teste contra regressão de N+1 e consultas excessivas.
 
 ### Frontend
 

@@ -1,9 +1,14 @@
 package br.com.eduardo.mealplanner.recipe;
 
 import br.com.eduardo.mealplanner.ingredient.IngredientCatalog;
+import br.com.eduardo.mealplanner.ingredient.IngredientReference;
 import br.com.eduardo.mealplanner.web.DuplicateResourceException;
+import br.com.eduardo.mealplanner.web.PagedResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Map;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,16 +27,17 @@ class RecipeService {
 	RecipeResponse create(RecipeRequest request) {
 		var name = normalizeName(request.name());
 		ensureUniqueName(name, null);
-		validateIngredients(request);
+		var ingredientReferences = validateIngredients(request);
 		var recipe = new Recipe(name, normalize(request.description()), request.servings(),
 				request.preparationTimeMinutes());
 		addContents(recipe, request);
-		return toResponse(repository.saveAndFlush(recipe));
+		return toResponse(repository.saveAndFlush(recipe), ingredientReferences);
 	}
 
 	@Transactional(readOnly = true)
-	List<RecipeResponse> list() {
-		return repository.findAllByOrderByNameAsc().stream().map(this::toResponse).toList();
+	PagedResponse<RecipeSummaryResponse> list(int page, int size) {
+		var pageRequest = PageRequest.of(page, size, Sort.by("name").ascending().and(Sort.by("id")));
+		return PagedResponse.from(repository.findAll(pageRequest).map(this::toSummary));
 	}
 
 	@Transactional(readOnly = true)
@@ -44,13 +50,13 @@ class RecipeService {
 		var recipe = find(id);
 		var name = normalizeName(request.name());
 		ensureUniqueName(name, id);
-		validateIngredients(request);
+		var ingredientReferences = validateIngredients(request);
 
 		recipe.replaceDetails(name, normalize(request.description()), request.servings(),
 				request.preparationTimeMinutes());
 		repository.flush();
 		addContents(recipe, request);
-		return toResponse(repository.saveAndFlush(recipe));
+		return toResponse(repository.saveAndFlush(recipe), ingredientReferences);
 	}
 
 	@Transactional
@@ -64,8 +70,10 @@ class RecipeService {
 				.orElseThrow(() -> new EntityNotFoundException("Receita não encontrada"));
 	}
 
-	private void validateIngredients(RecipeRequest request) {
-		request.ingredients().forEach(item -> ingredientCatalog.require(item.ingredientId()));
+	private Map<Long, IngredientReference> validateIngredients(RecipeRequest request) {
+		return ingredientCatalog.requireAll(request.ingredients().stream()
+				.map(RecipeRequest.RecipeIngredientRequest::ingredientId)
+				.toList());
 	}
 
 	private void addContents(Recipe recipe, RecipeRequest request) {
@@ -80,9 +88,16 @@ class RecipeService {
 	}
 
 	private RecipeResponse toResponse(Recipe recipe) {
+		var ingredientReferences = ingredientCatalog.requireAll(recipe.ingredients().stream()
+				.map(RecipeIngredient::ingredientId)
+				.toList());
+		return toResponse(recipe, ingredientReferences);
+	}
+
+	private RecipeResponse toResponse(Recipe recipe, Map<Long, IngredientReference> ingredientReferences) {
 		List<RecipeResponse.RecipeIngredientResponse> ingredients = recipe.ingredients().stream()
 				.map(item -> {
-					var ingredient = ingredientCatalog.require(item.ingredientId());
+					var ingredient = ingredientReferences.get(item.ingredientId());
 					return new RecipeResponse.RecipeIngredientResponse(item.ingredientId(), ingredient.name(),
 							item.quantity(), item.unit(), item.notes());
 				})
@@ -92,6 +107,11 @@ class RecipeService {
 				.toList();
 		return new RecipeResponse(recipe.id(), recipe.name(), recipe.description(), recipe.servings(),
 				recipe.preparationTimeMinutes(), ingredients, steps, recipe.createdAt(), recipe.updatedAt());
+	}
+
+	private RecipeSummaryResponse toSummary(Recipe recipe) {
+		return new RecipeSummaryResponse(recipe.id(), recipe.name(), recipe.description(), recipe.servings(),
+				recipe.preparationTimeMinutes(), recipe.createdAt(), recipe.updatedAt());
 	}
 
 	private void ensureUniqueName(String name, Long currentId) {

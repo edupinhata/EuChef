@@ -1,5 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { ApiClientError, api } from "../api/client";
 import type { Ingredient, IngredientPayload } from "../api/types";
 import { IngredientForm } from "../features/ingredients/IngredientForm";
@@ -24,10 +29,29 @@ export function IngredientsPage() {
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Ingredient>();
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    if (search.trim() === debouncedSearch) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(0);
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [search, debouncedSearch]);
   const ingredients = useQuery({
-    queryKey: ["ingredients"],
-    queryFn: api.ingredients.list,
+    queryKey: ["ingredients", debouncedSearch, page],
+    queryFn: () => api.ingredients.list({ q: debouncedSearch, page, size: 20 }),
+    placeholderData: keepPreviousData,
   });
+  useEffect(() => {
+    if (ingredients.data && page > 0 && page >= ingredients.data.totalPages) {
+      setPage(Math.max(0, ingredients.data.totalPages - 1));
+    }
+  }, [ingredients.data, page]);
   const save = useMutation({
     mutationFn: (payload: IngredientPayload) =>
       editing
@@ -88,6 +112,18 @@ export function IngredientsPage() {
         )}
       </div>
 
+      <div className="catalog-toolbar">
+        <label htmlFor="ingredient-search">Buscar ingredientes</label>
+        <input
+          id="ingredient-search"
+          type="search"
+          maxLength={100}
+          value={search}
+          placeholder="Digite o início do nome"
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
+
       {formOpen && (
         <section
           className="editor-card"
@@ -129,30 +165,38 @@ export function IngredientsPage() {
           em execução.
         </div>
       )}
-      {ingredients.data?.length === 0 && !formOpen && (
+      {ingredients.data?.content.length === 0 && !formOpen && (
         <div className="empty-state">
           <span className="line-icon" aria-hidden="true">
             ◌
           </span>
           <div>
-            <h2>Nenhum ingrediente cadastrado</h2>
+            <h2>
+              {debouncedSearch
+                ? "Nenhum ingrediente encontrado"
+                : "Nenhum ingrediente cadastrado"}
+            </h2>
             <p>
-              Comece pelos itens que aparecem com frequência nas suas receitas.
+              {debouncedSearch
+                ? "Tente buscar pelo início de outro nome."
+                : "Comece pelos itens que aparecem com frequência nas suas receitas."}
             </p>
           </div>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => setFormOpen(true)}
-          >
-            Adicionar primeiro ingrediente
-          </button>
+          {!debouncedSearch && (
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => setFormOpen(true)}
+            >
+              Adicionar primeiro ingrediente
+            </button>
+          )}
         </div>
       )}
 
-      {ingredients.data && ingredients.data.length > 0 && (
+      {ingredients.data && ingredients.data.content.length > 0 && (
         <div className="card-list" aria-label="Ingredientes cadastrados">
-          {ingredients.data.map((ingredient) => (
+          {ingredients.data.content.map((ingredient) => (
             <article className="catalog-card" key={ingredient.id}>
               <div className="catalog-card__body">
                 <div className="catalog-card__title">
@@ -199,6 +243,30 @@ export function IngredientsPage() {
             </article>
           ))}
         </div>
+      )}
+
+      {ingredients.data && ingredients.data.totalPages > 1 && (
+        <nav className="pagination" aria-label="Paginação de ingredientes">
+          <button
+            className="text-button"
+            type="button"
+            disabled={!ingredients.data.hasPrevious || ingredients.isFetching}
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+          >
+            Página anterior
+          </button>
+          <span aria-live="polite">
+            Página {ingredients.data.page + 1} de {ingredients.data.totalPages}
+          </span>
+          <button
+            className="text-button"
+            type="button"
+            disabled={!ingredients.data.hasNext || ingredients.isFetching}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Próxima página
+          </button>
+        </nav>
       )}
     </section>
   );

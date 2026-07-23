@@ -2,7 +2,9 @@ package br.com.eduardo.mealplanner.web;
 
 import br.com.eduardo.mealplanner.auth.EmailAlreadyRegisteredException;
 import br.com.eduardo.mealplanner.auth.InvalidCredentialsException;
+import br.com.eduardo.mealplanner.ingredient.IngredientsNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,6 +23,11 @@ class ApiExceptionHandler {
 		return error(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), Map.of());
 	}
 
+	@ExceptionHandler(IngredientsNotFoundException.class)
+	ResponseEntity<ApiError> handleIngredientsNotFound(IngredientsNotFoundException exception) {
+		return error(HttpStatus.NOT_FOUND, "INGREDIENTS_NOT_FOUND", exception.getMessage(), Map.of());
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception) {
 		Map<String, String> fields = new LinkedHashMap<>();
@@ -28,6 +35,15 @@ class ApiExceptionHandler {
 				.forEach(error -> fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
 		return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
 				"Existem campos inválidos na requisição", fields);
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException exception) {
+		Map<String, String> fields = new LinkedHashMap<>();
+		exception.getConstraintViolations().forEach(violation ->
+				fields.putIfAbsent(violation.getPropertyPath().toString(), violation.getMessage()));
+		return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+				"Existem parâmetros inválidos na requisição", fields);
 	}
 
 	@ExceptionHandler({DuplicateResourceException.class, DataIntegrityViolationException.class})
