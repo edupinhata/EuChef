@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "expiresOn": "2026-08-10",
+  "trackingIssue": "https://github.com/edupinhata/EuChef/issues/21",
+  "reason": "EuChef uses SPA routing only and does not use the affected React Server Components mode or Server Actions.",
+  "advisories": [
+    {
+      "id": "GHSA-qwww-vcr4-c8h2",
+      "packages": ["react-router", "react-router-dom"]
+    }
+  ]
+}

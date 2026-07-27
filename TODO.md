@@ -163,6 +163,7 @@ Deve ser possível ir para as receitas planejadas das semanas anteriores.
 - [x] Build, lint, formatação, Compose e auditoria npm aprovados.
 - [x] Fluxo HTTP real de ingredientes e receitas validado.
 - [x] Diretrizes de engenharia para agentes registradas em `AGENTS.md`.
+- [x] Uso de tokens e custo de agentes rastreável por PR, sem persistir conteúdo das conversas.
 - [x] Stack Docker local com PostgreSQL, backend, frontend, healthchecks e proxy Nginx validado.
 - [x] Autenticação por sessão e CSRF validada ponta a ponta pelo proxy Nginx.
 - [x] Imagens backend e frontend aprovadas pelo Trivy sem achados altos/críticos ou secrets.
