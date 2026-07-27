@@ -119,7 +119,7 @@ Deve ser possível ir para as receitas planejadas das semanas anteriores.
 - [ ] Adicionar informações de qual usuário criou a receita. A ideia é futuramente poder pegar receitas de outros usuários.
 
 
-## P2.2 - Funcionalidades - Lista de Compras
+## P2.2 — Funcionalidades - Lista de Compras
 - [ ] Implementar geração e gerenciamento da lista de compras.
 - [ ] Fazer com que a lista de compras seja atualizada automaticamente quando uma receita é adicionada ou removida no planejamento semanal.
 - [ ] Atualizar `README.md` e `docs/API.md` conforme cada entrega.
