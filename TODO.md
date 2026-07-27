@@ -92,7 +92,17 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 - [ ] Testar edição e combinações opcionais do `IngredientForm`.
 - [ ] Testar resposta `204`, erro não JSON e falha de rede no cliente HTTP.
 
-## P2 — Funcionalidades do produto
+## P2.1 — Funcionalidades do produto - Receitas
+
+As receitas devem conter:
+- Listagem de ingredientes (que estarão relacionados aos ingredientes que podem ser comprados ou que estão na dispensa no banco de dados)
+- Passo a passo para fazer
+- Foto do prato
+- Tempo de preparo
+- Categoria da receita (refeição, aperitivo, café da manhã, lanche, sobremesa, bebida)
+- Informações nutricionais básicas a vista, e mais detalhadas como um expandable.
+
+Deve ser possível ir para as receitas planejadas das semanas anteriores.
 
 - [ ] **Criar o frontend completo de receitas por TDD.**
   - Listagem, estado vazio e tratamento de erro.
@@ -101,11 +111,31 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
   - Inclusão, remoção e ordenação dos passos.
   - Exclusão com confirmação.
 - [ ] Implementar planejamento semanal persistente.
+  - Busca por receitas
+  - Adicionar/Remover receita do planejamento semanal
+- [ ] Atualizar `README.md` e `docs/API.md` conforme cada entrega.
+- [ ] Adicionar espaço para fazer um embbeding de um vídeo do youtube sobre a receita a ser feita. O vídeo deve ser mais abaixo, de modo que o mais importante: ingredientes e modo de preparo, fiquem mais evidentes e rápidos de pesquisar.
+- [ ] Adicionar lugar para considerar o tempo de preparo estimado da receita.
+- [ ] Adicionar informações de qual usuário criou a receita. A ideia é futuramente poder pegar receitas de outros usuários.
+
+
+## P2.2 - Funcionalidades - Lista de Compras
 - [ ] Implementar geração e gerenciamento da lista de compras.
+- [ ] Fazer com que a lista de compras seja atualizada automaticamente quando uma receita é adicionada ou removida no planejamento semanal.
+- [ ] Atualizar `README.md` e `docs/API.md` conforme cada entrega.
+
+
+## P2.3 - Funcionalidades
+- [ ] Modificar o nome Mesa da Semana para EuChef
+- [ ] Atualizar `README.md` e `docs/API.md` conforme cada entrega.
+
+
+## P2.4 - Funcionalidades - Controle da despensa
 - [ ] Implementar controle da despensa.
 - [ ] Atualizar `README.md` e `docs/API.md` conforme cada entrega.
 
-## P2 — Manutenibilidade
+
+## P3 — Manutenibilidade
 
 - [ ] **Adotar o namespace Java definitivo do EuChef em uma PR dedicada.**
   - Substituir `br.com.eduardo.mealplanner` e alinhar o `groupId` Maven.
@@ -121,10 +151,6 @@ Painel resumido do que falta para evoluir o projeto do ambiente local atual até
 - [x] Configurar verificação automatizada de vulnerabilidades das dependências do backend.
 - [x] Definir CI para testes, lint, formatação, build e verificações de segurança.
 
-## P3 - Funcionalidades
-
-- [ ] Modificar o nome Mesa da Semana para EuChef
-- [ ] Adicionar informações de qual usuário criou a receita. A ideia é futuramente poder pegar receitas de outros usuários.
 
 ## Já concluído
 
