@@ -179,6 +179,33 @@ class RecipeApiTest {
 				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("999999")));
 	}
 
+	@Test
+	void rejectsDuplicateIngredientsInARecipe() throws Exception {
+		long ingredientId = createIngredient("Ingrediente duplicado em receita", "GRAM");
+		String request = """
+				{
+				  "name": "Receita com ingrediente duplicado",
+				  "servings": 2,
+				  "preparationTimeMinutes": 10,
+				  "ingredients": [
+				    { "ingredientId": %d, "quantity": 1, "unit": "UNIT" },
+				    { "ingredientId": %d, "quantity": 2, "unit": "UNIT" }
+				  ],
+				  "preparationSteps": ["Não deve ser persistida."]
+				}
+				""".formatted(ingredientId, ingredientId);
+
+		mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors.ingredientIdsUnique")
+						.value("Uma receita não pode repetir o mesmo ingrediente"));
+	}
+
 	private String recipeRequest(String name, long ingredientId, String... steps) {
 		var stepJson = java.util.Arrays.stream(steps)
 				.map(step -> "\"" + step + "\"")
