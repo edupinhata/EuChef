@@ -114,7 +114,7 @@ Deve ser possível ir para as receitas planejadas das semanas anteriores.
   - Busca por receitas
   - Adicionar/Remover receita do planejamento semanal
 - [ ] Atualizar `README.md` e `docs/API.md` conforme cada entrega.
-- [ ] Adicionar espaço para fazer um embbeding de um vídeo do youtube sobre a receita a ser feita. O vídeo deve ser mais abaixo, de modo que o mais importante: ingredientes e modo de preparo, fiquem mais evidentes e rápidos de pesquisar.
+- [ ] Adicionar espaço para fazer um embedding de um vídeo do YouTube sobre a receita a ser feita. O vídeo deve ser mais abaixo, de modo que o mais importante: ingredientes e modo de preparo, fiquem mais evidentes e rápidos de pesquisar.
 - [ ] Adicionar lugar para considerar o tempo de preparo estimado da receita.
 - [ ] Adicionar informações de qual usuário criou a receita. A ideia é futuramente poder pegar receitas de outros usuários.
 
