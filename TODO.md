@@ -100,7 +100,7 @@ As receitas devem conter:
 - Foto do prato
 - Tempo de preparo
 - Categoria da receita (refeição, aperitivo, café da manhã, lanche, sobremesa, bebida)
-- Informações nutricionais básicas a vista, e mais detalhadas como um expandable.
+- Informações nutricionais básicas à vista, e mais detalhadas como um elemento expansível.
 
 Deve ser possível ir para as receitas planejadas das semanas anteriores.
 
