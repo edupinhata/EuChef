@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest",
+    "test:security-audit": "node --test scripts/tests/*.test.mjs",
+    "audit:security": "node scripts/audit-security.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview"

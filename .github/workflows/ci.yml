@@ -72,11 +72,14 @@ jobs:
       - name: Run tests
         run: npm test -- --run
 
+      - name: Test security audit policy
+        run: npm run test:security-audit
+
       - name: Build production bundle
         run: npm run build
 
       - name: Audit high-severity vulnerabilities
-        run: npm audit --audit-level=high
+        run: npm run audit:security
 
   container-smoke-test:
     name: Containers — build and smoke test
