@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Track sanitized Hermes token usage deltas for pull requests."""
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import time
 import unicodedata
+from collections import deque
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -143,7 +144,9 @@ class HermesCollector:
 
 
 def _counter(session: dict[str, Any], key: str) -> int:
-    value = session.get(key, 0)
+    if key not in session:
+        raise UsageCollectionError(f"Missing Hermes counter {key}")
+    value = session[key]
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
         raise UsageCollectionError(f"Invalid Hermes counter {key}: {value!r}")
     return value
@@ -406,9 +409,9 @@ def _linked_subagents(
             current = sessions_by_id[current]["parent_session_id"]
 
     linked: list[dict[str, Any]] = []
-    queue = list(children.get(root_session_id, []))
+    queue = deque(children.get(root_session_id, []))
     while queue:
-        session = queue.pop(0)
+        session = queue.popleft()
         linked.append(session)
         queue.extend(children.get(session["id"], []))
     return linked

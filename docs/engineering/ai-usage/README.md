@@ -65,6 +65,17 @@ hermes sessions list --limit 10
 
 Use o ID da sessão dedicada à PR exibido pelo último comando.
 
+## Disparo manual e uso por agentes
+
+Nesta versão, `start` e `finish` possuem **disparo explícito**. O script automatiza a exportação sanitizada, os snapshots, o cálculo, a validação e a persistência, mas não instala hooks no Hermes, no Git ou no GitHub.
+
+- uma pessoa pode executar os comandos diretamente;
+- um agente pode executá-los como parte do trabalho quando receber essa instrução e tiver o ID da sessão e os dados da PR;
+- executar o agente não dispara a medição automaticamente por si só;
+- se `start` não for executado antes do trabalho, o consumo anterior não pode ser reconstruído com segurança e não deve ser estimado.
+
+Automatizar o gatilho no ciclo de vida dos agentes exige uma integração separada que identifique de forma inequívoca a sessão e a PR. Até lá, trate os dois comandos como passos obrigatórios do checklist da mudança.
+
 ## Iniciar uma medição
 
 Execute antes de qualquer investigação ou alteração:

@@ -151,7 +151,38 @@ class AiUsageTest(unittest.TestCase):
             self.assertEqual(snapshot["session"]["inputTokens"], 100)
             self.assertNotIn("messages", serialized)
             self.assertNotIn("system_prompt", serialized)
+            self.assertNotIn("origin_json", serialized)
             self.assertNotIn("must never be persisted", serialized)
+
+    def test_start_rejects_every_missing_hermes_counter(self):
+        counter_fields = [
+            "input_tokens",
+            "output_tokens",
+            "cache_read_tokens",
+            "cache_write_tokens",
+            "reasoning_tokens",
+            "api_call_count",
+            "tool_call_count",
+        ]
+        for counter in counter_fields:
+            with (
+                self.subTest(counter=counter),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                snapshot_path = Path(directory) / "work.json"
+                incomplete = session("main-1")
+                del incomplete[counter]
+
+                with self.assertRaisesRegex(UsageCollectionError, "counter"):
+                    start_measurement(
+                        work_id="missing-counter",
+                        session_id="main-1",
+                        snapshot_path=snapshot_path,
+                        collector=FakeCollector(incomplete),
+                        captured_at=100.0,
+                    )
+
+                self.assertFalse(snapshot_path.exists())
 
     def test_aggregate_usage_sums_main_delta_and_linked_subagents(self):
         start = session(
