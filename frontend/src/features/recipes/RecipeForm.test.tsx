@@ -251,8 +251,9 @@ describe("RecipeForm", () => {
     );
     const quantity = screen.getByRole("spinbutton", { name: "Quantidade 1" });
     await user.clear(quantity);
-    await user.type(quantity, "1.0001");
-    await user.type(screen.getByRole("textbox", { name: "Passo 1" }), "   ");
+    await user.type(quantity, "100000000.00000001");
+    const step = screen.getByRole("textbox", { name: "Passo 1" });
+    await user.type(step, "   ");
     await user.click(screen.getByRole("button", { name: "Salvar receita" }));
 
     const name = screen.getByRole("textbox", { name: "Nome" });
@@ -273,6 +274,8 @@ describe("RecipeForm", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Descreva este passo.")).toBeInTheDocument();
+    expect(step).toHaveAttribute("aria-invalid", "true");
+    expect(step).toHaveAccessibleDescription("Descreva este passo.");
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });

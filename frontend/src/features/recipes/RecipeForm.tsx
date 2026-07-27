@@ -21,7 +21,7 @@ interface RecipeFormProps {
 
 interface IngredientValues {
   ingredientId: number;
-  quantity: number;
+  quantity: string;
   unit: MeasurementUnit;
   notes: string;
 }
@@ -41,15 +41,19 @@ interface FormValues {
 
 const emptyIngredient: IngredientValues = {
   ingredientId: undefined as unknown as number,
-  quantity: 1,
+  quantity: "1",
   unit: "GRAM",
   notes: "",
 };
 
-function hasAtMostThreeDecimalPlaces(value: number) {
-  const rounded = Math.round(value * 1000) / 1000;
-  const tolerance = Number.EPSILON * Math.max(1, Math.abs(value)) * 4;
-  return Math.abs(value - rounded) <= tolerance;
+function isValidQuantity(value: string) {
+  const quantity = Number(value);
+  return (
+    /^\d+(?:\.\d{1,3})?$/.test(value) &&
+    Number.isFinite(quantity) &&
+    quantity >= 0.001 &&
+    quantity <= 999999999.999
+  );
 }
 
 function formDefaults(recipe?: Recipe): FormValues {
@@ -70,7 +74,7 @@ function formDefaults(recipe?: Recipe): FormValues {
     preparationTimeMinutes: recipe.preparationTimeMinutes,
     ingredients: recipe.ingredients.map((ingredient) => ({
       ingredientId: ingredient.ingredientId,
-      quantity: ingredient.quantity,
+      quantity: String(ingredient.quantity),
       unit: ingredient.unit,
       notes: ingredient.notes ?? "",
     })),
@@ -129,7 +133,7 @@ export function RecipeForm({
       preparationTimeMinutes: values.preparationTimeMinutes,
       ingredients: values.ingredients.map((ingredient) => ({
         ingredientId: ingredient.ingredientId,
-        quantity: ingredient.quantity,
+        quantity: Number(ingredient.quantity),
         unit: ingredient.unit,
         notes: ingredient.notes.trim() || undefined,
       })),
@@ -248,12 +252,8 @@ export function RecipeForm({
                 max="999999999.999"
                 step="0.001"
                 {...register(`ingredients.${index}.quantity`, {
-                  valueAsNumber: true,
                   validate: (value) =>
-                    (Number.isFinite(value) &&
-                      value >= 0.001 &&
-                      value <= 999999999.999 &&
-                      hasAtMostThreeDecimalPlaces(value)) ||
+                    isValidQuantity(value) ||
                     "Use uma quantidade válida com até três casas decimais.",
                 })}
               />
@@ -307,13 +307,21 @@ export function RecipeForm({
               id={`recipe-step-${index}`}
               rows={3}
               maxLength={2000}
+              aria-invalid={
+                errors.preparationSteps?.[index]?.instruction ? true : undefined
+              }
+              aria-describedby={
+                errors.preparationSteps?.[index]?.instruction
+                  ? `recipe-step-${index}-error`
+                  : undefined
+              }
               {...register(`preparationSteps.${index}.instruction`, {
                 validate: (value) =>
                   value.trim().length > 0 || "Descreva este passo.",
               })}
             />
             {errors.preparationSteps?.[index]?.instruction && (
-              <span className="field-error">
+              <span className="field-error" id={`recipe-step-${index}-error`}>
                 {errors.preparationSteps[index].instruction.message}
               </span>
             )}
