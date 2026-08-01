@@ -22,7 +22,7 @@ public record RecipeRequest(
 		@Size(max = 1500) String description,
 		@NotNull @Min(1) @Max(1000) Integer servings,
 		@NotNull @Min(0) @Max(10080) Integer preparationTimeMinutes,
-		@NotEmpty @Size(max = 100) List<@Valid RecipeIngredientRequest> ingredients,
+		@NotEmpty @Size(max = 100) List<@Valid @NotNull RecipeIngredientRequest> ingredients,
 		@NotEmpty @Size(max = 100) List<@NotBlank @Size(max = 2000) String> preparationSteps) {
 
 	@AssertTrue(message = "Uma receita não pode repetir o mesmo ingrediente")
