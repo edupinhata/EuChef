@@ -2,7 +2,7 @@
 
 Aplicação web mobile-first para organizar receitas, planejar as refeições da semana e, nas próximas etapas, gerar listas de compras considerando os itens disponíveis na despensa.
 
-> **Estado atual:** autenticação por sessão, perfis `USER`/`ADMIN` e controles HTTP protegem a aplicação. O CRUD de ingredientes e receitas existe no backend, e autenticação e ingredientes estão integrados ao frontend. O frontend de receitas, o planejamento persistente, a lista de compras e a despensa ainda serão implementados.
+> **Estado atual:** autenticação por sessão, perfis `USER`/`ADMIN` e controles HTTP protegem a aplicação. Ingredientes e receitas possuem CRUD integrado entre backend e frontend. O planejamento persistente, a lista de compras e a despensa ainda serão implementados.
 >
 > 📋 **Pendências e preparação para produção:** consulte o [`TODO.md`](TODO.md).
 
@@ -31,7 +31,7 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 - navegação entre Semana, Receitas, Ingredientes, Compras e Despensa;
 - tela inicial da semana e estados vazios das áreas principais;
 - CRUD de ingredientes no backend e frontend;
-- CRUD de receitas no backend;
+- CRUD de receitas no backend e frontend, com ingredientes, quantidades, unidades e passos ordenáveis;
 - cadastro, login, restauração de sessão e logout no frontend;
 - autenticação por sessão, CSRF e autorização `USER`/`ADMIN` no backend;
 - CORS restritivo, limites de payload, rate limiting e headers de segurança;
@@ -40,7 +40,7 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 - especificação OpenAPI e Swagger UI;
 - testes automatizados no backend e frontend.
 
-As telas de receitas, compras e despensa ainda representam a estrutura inicial do produto e não persistem dados.
+As telas de compras e despensa ainda representam a estrutura inicial do produto e não persistem dados.
 
 ## Tecnologias
 

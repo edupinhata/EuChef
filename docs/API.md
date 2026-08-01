@@ -117,13 +117,13 @@ A listagem aceita `page` (base zero, padrão `0`), `size` (padrão `20`, máximo
 
 Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSRF.
 
-| Método   | Caminho                | Resultado             |
-| -------- | ---------------------- | --------------------- |
+| Método   | Caminho                | Resultado                |
+| -------- | ---------------------- | ------------------------ |
 | `GET`    | `/api/v1/recipes`      | `200`, página de resumos |
-| `POST`   | `/api/v1/recipes`      | `201`, receita criada |
-| `GET`    | `/api/v1/recipes/{id}` | `200`                 |
-| `PUT`    | `/api/v1/recipes/{id}` | `200`                 |
-| `DELETE` | `/api/v1/recipes/{id}` | `204`                 |
+| `POST`   | `/api/v1/recipes`      | `201`, receita criada    |
+| `GET`    | `/api/v1/recipes/{id}` | `200`                    |
+| `PUT`    | `/api/v1/recipes/{id}` | `200`                    |
+| `DELETE` | `/api/v1/recipes/{id}` | `204`                    |
 
 Ingredientes e receitas formam, nesta etapa, um catálogo compartilhado entre usuários autenticados. Propriedade e compartilhamento por autor permanecem planejados no P3 do [`TODO.md`](../TODO.md).
 
@@ -143,7 +143,7 @@ Listagens paginadas usam o envelope estável:
 }
 ```
 
-Ao criar ou atualizar uma receita, todos os IDs de ingredientes são validados em lote. IDs ausentes retornam `404 INGREDIENTS_NOT_FOUND`; a mensagem continua legível para humanos e `details.missingIngredientIds` contém a lista numérica para clientes.
+Ao criar ou atualizar uma receita, todos os IDs de ingredientes são validados em lote. IDs ausentes retornam `404 INGREDIENTS_NOT_FOUND`; a mensagem continua legível para humanos e `details.missingIngredientIds` contém a lista numérica para clientes. Repetir o mesmo `ingredientId` na receita retorna `400 VALIDATION_ERROR`, com a chave `ingredientIdsUnique` em `fieldErrors`.
 
 ## Administração e documentação interativa
 
