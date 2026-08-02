@@ -30,7 +30,7 @@ class IngredientApiTest {
 	void createsAndRetrievesIngredientWithNutritionAndSeasonality() throws Exception {
 		var request = """
 				{
-				  "name": "Abóbora cabotiá",
+				  "name": "Ingrediente teste nutricional cabotiá",
 				  "description": "Abóbora de polpa firme",
 				  "defaultUnit": "GRAM",
 				  "nutritionPer100g": {
@@ -55,7 +55,7 @@ class IngredientApiTest {
 				.content(request))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.id").isNumber())
-				.andExpect(jsonPath("$.name").value("Abóbora cabotiá"))
+				.andExpect(jsonPath("$.name").value("Ingrediente teste nutricional cabotiá"))
 				.andExpect(jsonPath("$.nutritionPer100g.caloriesKcal").value(48.0))
 				.andExpect(jsonPath("$.seasonality.startMonth").value(5))
 				.andReturn();
@@ -72,11 +72,13 @@ class IngredientApiTest {
 
 	@Test
 	void listsUpdatesAndDeletesIngredient() throws Exception {
-		var location = createMinimalIngredient("Tomate italiano");
+		var location = createMinimalIngredient("Ingrediente teste CRUD tomate");
 
-		mockMvc.perform(get("/api/v1/ingredients").with(user("test@example.com").roles("USER")))
+		mockMvc.perform(get("/api/v1/ingredients")
+				.param("q", "teste CRUD tomate")
+				.with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content[?(@.name == 'Tomate italiano')]").exists());
+				.andExpect(jsonPath("$.content[?(@.name == 'Ingrediente teste CRUD tomate')]").exists());
 
 		var update = """
 				{
@@ -125,11 +127,11 @@ class IngredientApiTest {
 				.andExpect(jsonPath("$.fieldErrors['nutritionPer100g.caloriesKcal']").exists())
 				.andExpect(jsonPath("$.fieldErrors['seasonality.startMonth']").exists());
 
-		createMinimalIngredient("Manjericão");
+		createMinimalIngredient("Ingrediente teste duplicado manjericão");
 
 		var duplicate = """
 				{
-				  "name": "  MANJERICÃO  ",
+				  "name": "  INGREDIENTE TESTE DUPLICADO MANJERICÃO  ",
 				  "defaultUnit": "GRAM"
 				}
 				""";
@@ -148,7 +150,7 @@ class IngredientApiTest {
 		createMinimalIngredient("00 Busca P1 Abacaxi");
 		createMinimalIngredient("00 Busca P1 Abóbora");
 		createMinimalIngredient("Ingrediente fora da busca");
-		createMinimalIngredient("Peito de frango");
+		createMinimalIngredient("Ingrediente busca frango-teste-exclusivo");
 		createMinimalIngredient("% Ingrediente literal");
 		createMinimalIngredient("_ Ingrediente literal");
 		createMinimalIngredient("! Ingrediente literal");
@@ -178,7 +180,7 @@ class IngredientApiTest {
 				.andExpect(jsonPath("$.totalElements").value(1))
 				.andExpect(jsonPath("$.content[0].name").value("% Ingrediente literal"));
 
-		assertLiteralSearch("frango", "Peito de frango");
+		assertLiteralSearch("frango-teste-exclusivo", "Ingrediente busca frango-teste-exclusivo");
 		assertLiteralSearch("_", "_ Ingrediente literal");
 		assertLiteralSearch("!", "! Ingrediente literal");
 	}
