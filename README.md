@@ -439,6 +439,15 @@ docker compose down -v
 
 > **Atenção:** `docker compose down -v` é destrutivo. Use somente quando quiser recriar o banco do zero.
 
+Quando o backend for iniciado contra esse banco vazio, o Flyway aplicará as migrações e a
+`V5__seed_initial_catalog.sql` carregará o catálogo inicial: 200 ingredientes com descrição e valores
+nutricionais médios aproximados por 100 g, além de 30 receitas que, em conjunto, utilizam todo o catálogo.
+Os valores variam conforme marca, variedade, maturação e preparo e não substituem rótulos nem orientação
+nutricional profissional.
+
+Em um banco já existente, a migração preserva ingredientes e receitas que tenham o mesmo nome, sem
+sobrescrever o conteúdo cadastrado pelo usuário.
+
 ## Documentação da API
 
 A documentação operacional e o contrato atual da API estão em [`docs/API.md`](docs/API.md).

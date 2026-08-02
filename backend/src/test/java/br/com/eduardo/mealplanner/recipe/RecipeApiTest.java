@@ -35,7 +35,7 @@ class RecipeApiTest {
 	@Test
 	void createsAndRetrievesRecipeWithQuantitiesAndOrderedPreparationSteps() throws Exception {
 		long pumpkinId = createIngredient("Abóbora japonesa", "GRAM");
-		long onionId = createIngredient("Cebola roxa", "UNIT");
+		long onionId = createIngredient("Cebola roxa de teste", "UNIT");
 		var request = """
 				{
 				  "name": "Sopa cremosa de abóbora",
@@ -87,7 +87,7 @@ class RecipeApiTest {
 
 	@Test
 	void listsUpdatesAndDeletesRecipe() throws Exception {
-		long ingredientId = createIngredient("Lentilha marrom", "GRAM");
+		long ingredientId = createIngredient("Lentilha marrom de teste", "GRAM");
 		var original = recipeRequest("Ensopado de lentilha", ingredientId, "Cozinhe a lentilha.");
 		var location = mockMvc.perform(post("/api/v1/recipes")
 				.with(csrf())
