@@ -119,8 +119,8 @@ Deve ser possível ir para as receitas planejadas das semanas anteriores.
 - [ ] Adicionar lugar para considerar o tempo de preparo estimado da receita.
 - [ ] Adicionar informações de qual usuário criou a receita. A ideia é futuramente poder pegar receitas de outros usuários.
 - [ ] Apenas o usuário que criou uma receita pode editar aquela receita.
-- [ ] Administradores (role) devem ter o poder de editar receitas de outros usuários.
-- [ ] Quando um ingrediente é adicionado na receita, ele não fica como um formulário. Ele aparece em uma única linha, com um botão de editar e deletar. Dessa forma, é mais fácil ver os ingredientes que já foram adicionados.
+- [ ] Administradores (role ADMIN) devem ter o poder de editar receitas de outros usuários.
+- [ ] Quando um ingrediente é adicionado na receita, ele não fica como um formulário. Ele aparece em uma única linha, com um botão de editar e excluir. Dessa forma, é mais fácil ver os ingredientes que já foram adicionados.
 
 ## P2.2 — Funcionalidades - Lista de Compras
 
