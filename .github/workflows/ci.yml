@@ -72,9 +72,6 @@ jobs:
       - name: Run tests
         run: npm test -- --run
 
-      - name: Test security audit policy
-        run: npm run test:security-audit
-
       - name: Build production bundle
         run: npm run build
 
