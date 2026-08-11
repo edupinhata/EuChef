@@ -8,8 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest",
-    "test:security-audit": "node --test scripts/tests/*.test.mjs",
-    "audit:security": "node scripts/audit-security.mjs",
+    "audit:security": "npm audit --audit-level=high",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview"
@@ -19,7 +18,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.82.0",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
