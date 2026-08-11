@@ -91,6 +91,11 @@ export interface Recipe extends Omit<
 
 export type RecipeSummary = Omit<Recipe, "ingredients" | "preparationSteps">;
 
+export interface WeeklyPlan {
+  weekStart: string;
+  recipes: RecipeSummary[];
+}
+
 export interface AuthenticatedUser {
   id: number;
   displayName: string;

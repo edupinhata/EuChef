@@ -15,7 +15,7 @@ export function AppRouter() {
       <Route element={<RequireAuthentication />}>
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/semana/atual" replace />} />
-          <Route path="/semana/atual" element={<WeeklyPlanPage />} />
+          <Route path="/semana/:weekStart" element={<WeeklyPlanPage />} />
           <Route path="/receitas" element={<RecipesPage />} />
           <Route path="/ingredientes" element={<IngredientsPage />} />
           <Route path="/compras" element={<ShoppingListPage />} />

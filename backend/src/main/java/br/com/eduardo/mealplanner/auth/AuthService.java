@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class AuthService implements UserDetailsService {
+class AuthService implements UserDetailsService, UserIdentityProvider {
 
 	private final AppUserRepository repository;
 	private final PasswordEncoder passwordEncoder;
@@ -44,6 +44,22 @@ class AuthService implements UserDetailsService {
 	AuthenticatedUserResponse findAuthenticated(String email) {
 		return repository.findByEmail(normalizeEmail(email))
 				.map(AuthenticatedUserResponse::from)
+				.orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Long requireUserId(String email) {
+		return repository.findByEmail(normalizeEmail(email))
+				.map(AppUser::id)
+				.orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
+	}
+
+	@Override
+	@Transactional
+	public Long requireUserIdForUpdate(String email) {
+		return repository.findByEmailForUpdate(normalizeEmail(email))
+				.map(AppUser::id)
 				.orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
 	}
 

@@ -3,9 +3,11 @@ package br.com.eduardo.mealplanner.web;
 import br.com.eduardo.mealplanner.auth.EmailAlreadyRegisteredException;
 import br.com.eduardo.mealplanner.auth.InvalidCredentialsException;
 import br.com.eduardo.mealplanner.ingredient.IngredientsNotFoundException;
+import br.com.eduardo.mealplanner.weeklyplan.InvalidWeekStartException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -14,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 class ApiExceptionHandler {
@@ -65,6 +68,22 @@ class ApiExceptionHandler {
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException exception) {
 		return error(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", exception.getMessage(), Map.of());
+	}
+
+	@ExceptionHandler(InvalidWeekStartException.class)
+	ResponseEntity<ApiError> handleInvalidWeekStart(InvalidWeekStartException exception) {
+		return error(HttpStatus.BAD_REQUEST, "INVALID_WEEK_START", exception.getMessage(), Map.of());
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+		String parameterName = publicParameterName(exception.getName());
+		if (LocalDate.class.equals(exception.getRequiredType()) && "weekStart".equals(parameterName)) {
+			InvalidWeekStartException invalidWeekStart = new InvalidWeekStartException();
+			return error(HttpStatus.BAD_REQUEST, "INVALID_WEEK_START", invalidWeekStart.getMessage(), Map.of());
+		}
+		return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+				"Existem parâmetros inválidos na requisição", Map.of(parameterName, "Formato inválido"));
 	}
 
 	private ResponseEntity<ApiError> error(HttpStatus status, String code, String message,

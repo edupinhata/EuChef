@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -42,9 +43,10 @@ class RecipeController {
 
 	@GetMapping
 	PagedResponse<RecipeSummaryResponse> list(
+			@RequestParam(required = false) @Size(max = 100) String q,
 			@RequestParam(defaultValue = "0") @PositiveOrZero int page,
 			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-		return service.list(page, size);
+		return service.list(q, page, size);
 	}
 
 	@GetMapping("/{id}")

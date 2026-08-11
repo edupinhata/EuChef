@@ -11,6 +11,7 @@ import type {
   RecipePayload,
   RecipeSummary,
   RegistrationPayload,
+  WeeklyPlan,
 } from "./types";
 
 export class ApiClientError extends Error {
@@ -154,6 +155,19 @@ export const api = {
   },
   ingredients: resource<Ingredient, IngredientPayload>("/api/v1/ingredients"),
   recipes: resource<Recipe, RecipePayload, RecipeSummary>("/api/v1/recipes"),
+  weeklyPlans: {
+    get: (weekStart: string) =>
+      request<WeeklyPlan>(`/api/v1/weekly-plans/${weekStart}`),
+    addRecipe: (weekStart: string, recipeId: number) =>
+      request<WeeklyPlan>(`/api/v1/weekly-plans/${weekStart}/recipes`, {
+        method: "POST",
+        body: JSON.stringify({ recipeId }),
+      }),
+    removeRecipe: (weekStart: string, recipeId: number) =>
+      request<void>(`/api/v1/weekly-plans/${weekStart}/recipes/${recipeId}`, {
+        method: "DELETE",
+      }),
+  },
 };
 
 export function resetApiSecurityStateForTests() {

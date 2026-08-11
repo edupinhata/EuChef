@@ -197,6 +197,13 @@ p {
   text-transform: capitalize;
 }
 
+.week-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -14px 0 24px;
+}
+
 .page-description {
   max-width: 34rem;
   margin: 12px 0 0;
