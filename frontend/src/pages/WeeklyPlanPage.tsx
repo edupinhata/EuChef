@@ -7,31 +7,20 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ApiClientError, api } from "../api/client";
+import {
+  currentWeekStart,
+  isValidWeekStart,
+  shiftWeek,
+  weekLabel,
+} from "../features/weekly-plan/week";
 
 interface WeeklyPlanRecipeMutation {
   weekStart: string;
   recipeId: number;
 }
 
-function currentWeekStart() {
-  const today = new Date();
-  const monday = new Date(today);
-  const day = today.getDay() || 7;
-  monday.setDate(today.getDate() - day + 1);
-  return toIsoDate(monday);
-}
-
-function weekLabel(weekStart: string) {
-  const monday = new Date(`${weekStart}T12:00:00`);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-
-  const format = new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-  });
-
-  return `${format.format(monday)} — ${format.format(sunday)}`;
+interface WeeklyPlanQuantityMutation extends WeeklyPlanRecipeMutation {
+  quantity: number;
 }
 
 export function WeeklyPlanPage() {
@@ -58,8 +47,22 @@ export function WeeklyPlanPage() {
     queryKey: ["weekly-plans", weekStart],
     queryFn: () => api.weeklyPlans.get(weekStart),
   });
-  const [chooserOpen, setChooserOpen] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState("");
+  const [plannedQuantities, setPlannedQuantities] = useState<
+    Record<number, string>
+  >({});
+  const [quantityStatus, setQuantityStatus] = useState<string | null>(null);
+  useEffect(() => {
+    if (!plan.data) return;
+    setPlannedQuantities(
+      Object.fromEntries(
+        plan.data.recipes.map((recipe) => [
+          recipe.id,
+          String(recipe.plannedQuantity),
+        ]),
+      ),
+    );
+  }, [plan.data]);
   const [debouncedRecipeSearch, setDebouncedRecipeSearch] = useState("");
   useEffect(() => {
     if (recipeSearch.trim() === debouncedRecipeSearch) return;
@@ -77,33 +80,68 @@ export function WeeklyPlanPage() {
         page: 0,
         size: 20,
       }),
-    enabled: chooserOpen,
+    enabled: Boolean(plan.data),
     placeholderData: keepPreviousData,
   });
   const addRecipe = useMutation({
     mutationFn: ({ weekStart, recipeId }: WeeklyPlanRecipeMutation) =>
       api.weeklyPlans.addRecipe(weekStart, recipeId),
-    onSuccess: (updatedPlan, mutation) => {
+    onSuccess: async (updatedPlan, mutation) => {
       queryClient.setQueryData(
         ["weekly-plans", mutation.weekStart],
         updatedPlan,
       );
+      await queryClient.invalidateQueries({
+        queryKey: ["shopping-lists", mutation.weekStart],
+      });
     },
   });
   const removeRecipe = useMutation({
     mutationFn: ({ weekStart, recipeId }: WeeklyPlanRecipeMutation) =>
       api.weeklyPlans.removeRecipe(weekStart, recipeId),
     onSuccess: async (_response, mutation) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["weekly-plans", mutation.weekStart],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["shopping-lists", mutation.weekStart],
+        }),
+      ]);
+    },
+  });
+  const updateQuantity = useMutation({
+    mutationFn: ({
+      weekStart,
+      recipeId,
+      quantity,
+    }: WeeklyPlanQuantityMutation) =>
+      api.weeklyPlans.updateRecipeQuantity(weekStart, recipeId, quantity),
+    onMutate: () => setQuantityStatus(null),
+    onSuccess: async (updatedPlan, mutation) => {
+      queryClient.setQueryData(
+        ["weekly-plans", mutation.weekStart],
+        updatedPlan,
+      );
       await queryClient.invalidateQueries({
-        queryKey: ["weekly-plans", mutation.weekStart],
+        queryKey: ["shopping-lists", mutation.weekStart],
       });
+      const updatedRecipe = updatedPlan.recipes.find(
+        (recipe) => recipe.id === mutation.recipeId,
+      );
+      setQuantityStatus(
+        updatedRecipe
+          ? `Quantidade de ${updatedRecipe.name} atualizada.`
+          : "Quantidade atualizada.",
+      );
     },
   });
   const plannedIds = useMemo(
     () => new Set(plan.data?.recipes.map((recipe) => recipe.id) ?? []),
     [plan.data],
   );
-  const mutationPending = addRecipe.isPending || removeRecipe.isPending;
+  const mutationPending =
+    addRecipe.isPending || removeRecipe.isPending || updateQuantity.isPending;
 
   return (
     <section className="page" aria-labelledby="week-title">
@@ -134,6 +172,14 @@ export function WeeklyPlanPage() {
         </button>
       </nav>
 
+      <button
+        className="text-button"
+        type="button"
+        onClick={() => navigate(`/compras/${weekStart}`)}
+      >
+        Ver lista de compras desta semana
+      </button>
+
       {plan.isLoading && (
         <p className="status-message">Carregando planejamento…</p>
       )}
@@ -156,14 +202,6 @@ export function WeeklyPlanPage() {
               Escolha os pratos da semana para reunir tudo o que será preparado.
             </p>
           </div>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => setChooserOpen(true)}
-          >
-            Escolher receitas
-            <span aria-hidden="true">→</span>
-          </button>
         </div>
       )}
 
@@ -182,6 +220,64 @@ export function WeeklyPlanPage() {
                     {recipe.servings}{" "}
                     {recipe.servings === 1 ? "porção" : "porções"}
                   </span>
+                </div>
+                <div className="weekly-plan-quantity">
+                  <label htmlFor={`planned-quantity-${recipe.id}`}>
+                    Quantidade de {recipe.name}
+                  </label>
+                  <input
+                    id={`planned-quantity-${recipe.id}`}
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="1"
+                    value={
+                      plannedQuantities[recipe.id] ??
+                      String(recipe.plannedQuantity)
+                    }
+                    aria-invalid={
+                      !isValidQuantity(plannedQuantities[recipe.id])
+                    }
+                    aria-describedby={
+                      !isValidQuantity(plannedQuantities[recipe.id])
+                        ? `planned-quantity-error-${recipe.id}`
+                        : undefined
+                    }
+                    disabled={mutationPending}
+                    onChange={(event) => {
+                      setQuantityStatus(null);
+                      setPlannedQuantities((current) => ({
+                        ...current,
+                        [recipe.id]: event.target.value,
+                      }));
+                    }}
+                  />
+                  {!isValidQuantity(plannedQuantities[recipe.id]) && (
+                    <span
+                      className="field-error"
+                      id={`planned-quantity-error-${recipe.id}`}
+                    >
+                      Informe um número inteiro entre 1 e 100.
+                    </span>
+                  )}
+                  <button
+                    className="text-button"
+                    type="button"
+                    aria-label={`Atualizar quantidade de ${recipe.name}`}
+                    disabled={
+                      mutationPending ||
+                      !isValidQuantity(plannedQuantities[recipe.id])
+                    }
+                    onClick={() =>
+                      updateQuantity.mutate({
+                        weekStart,
+                        recipeId: recipe.id,
+                        quantity: Number(plannedQuantities[recipe.id]),
+                      })
+                    }
+                  >
+                    Atualizar quantidade
+                  </button>
                 </div>
               </div>
               <div className="card-actions">
@@ -202,23 +298,23 @@ export function WeeklyPlanPage() {
         </div>
       )}
 
-      {plan.data && plan.data.recipes.length > 0 && !chooserOpen && (
-        <button
-          className="primary-button weekly-plan-add-button"
-          type="button"
-          onClick={() => setChooserOpen(true)}
-        >
-          Escolher receitas
-        </button>
-      )}
-
-      {(addRecipe.isError || removeRecipe.isError) && (
+      {(addRecipe.isError ||
+        removeRecipe.isError ||
+        updateQuantity.isError) && (
         <div className="form-alert" role="alert">
-          {mutationError(addRecipe.error ?? removeRecipe.error)}
+          {mutationError(
+            addRecipe.error ?? removeRecipe.error ?? updateQuantity.error,
+          )}
         </div>
       )}
 
-      {chooserOpen && (
+      {quantityStatus && (
+        <p className="status-message" role="status">
+          {quantityStatus}
+        </p>
+      )}
+
+      {plan.data && (
         <section
           className="editor-card weekly-plan-chooser"
           aria-labelledby="recipe-chooser-title"
@@ -278,47 +374,20 @@ export function WeeklyPlanPage() {
                 })}
               </div>
             )}
-          <div className="form-actions">
-            <button
-              className="ghost-button"
-              type="button"
-              disabled={mutationPending}
-              onClick={() => setChooserOpen(false)}
-            >
-              Fechar
-            </button>
-          </div>
         </section>
       )}
     </section>
   );
 }
 
-function toIsoDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function isValidWeekStart(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T12:00:00`);
-  return (
-    !Number.isNaN(date.getTime()) &&
-    toIsoDate(date) === value &&
-    date.getDay() === 1
-  );
-}
-
-function shiftWeek(weekStart: string, days: number) {
-  const date = new Date(`${weekStart}T12:00:00`);
-  date.setDate(date.getDate() + days);
-  return toIsoDate(date);
-}
-
 function mutationError(error: Error | null) {
   return error instanceof ApiClientError
     ? error.message
     : "Não foi possível atualizar o planejamento.";
+}
+
+function isValidQuantity(value: string | undefined) {
+  if (!value) return false;
+  const quantity = Number(value);
+  return Number.isInteger(quantity) && quantity >= 1 && quantity <= 100;
 }

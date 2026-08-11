@@ -147,21 +147,34 @@ Ao criar ou atualizar uma receita, todos os IDs de ingredientes são validados e
 
 ## Planejamento semanal
 
-Todos os endpoints exigem `USER` ou `ADMIN`; `POST` e `DELETE` exigem CSRF. O planejamento é privado por usuário autenticado, mesmo que o catálogo de receitas ainda seja compartilhado.
+Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSRF. O planejamento e sua lista de compras são privados por usuário autenticado, mesmo que o catálogo de receitas ainda seja compartilhado.
 
-| Método   | Caminho                                               | Resultado                      |
-| -------- | ----------------------------------------------------- | ------------------------------ |
-| `GET`    | `/api/v1/weekly-plans/{weekStart}`                    | `200`, planejamento da semana  |
-| `POST`   | `/api/v1/weekly-plans/{weekStart}/recipes`            | `201`, planejamento atualizado |
-| `DELETE` | `/api/v1/weekly-plans/{weekStart}/recipes/{recipeId}` | `204`                          |
+| Método   | Caminho                                                     | Resultado                         |
+| -------- | ----------------------------------------------------------- | --------------------------------- |
+| `GET`    | `/api/v1/weekly-plans/{weekStart}`                          | `200`, planejamento da semana     |
+| `GET`    | `/api/v1/weekly-plans/{weekStart}/shopping-list`            | `200`, ingredientes consolidados  |
+| `POST`   | `/api/v1/weekly-plans/{weekStart}/recipes`                  | `201`, planejamento atualizado    |
+| `PUT`    | `/api/v1/weekly-plans/{weekStart}/recipes/{recipeId}`       | `200`, quantidade atualizada      |
+| `DELETE` | `/api/v1/weekly-plans/{weekStart}/recipes/{recipeId}`       | `204`                             |
 
-`weekStart` usa o formato ISO `AAAA-MM-DD` e deve representar uma segunda-feira. Valores malformados e datas de outros dias retornam `400 INVALID_WEEK_START`. Uma semana aceita no máximo 100 receitas e não permite repetir a mesma receita; duplicidades retornam `409 DUPLICATE_RESOURCE`. Receita inexistente e tentativa de remover um vínculo ausente ou pertencente a outro usuário retornam `404 RESOURCE_NOT_FOUND`.
+`weekStart` usa o formato ISO `AAAA-MM-DD` e deve representar uma segunda-feira. Valores malformados e datas de outros dias retornam `400 INVALID_WEEK_START`. Uma semana aceita no máximo 100 receitas e não permite repetir a mesma receita; duplicidades retornam `409 DUPLICATE_RESOURCE`. Receita inexistente e tentativa de alterar ou remover um vínculo ausente ou pertencente a outro usuário retornam `404 RESOURCE_NOT_FOUND`.
+
+`quantity` representa quantas vezes a receita será preparada naquela semana. É um inteiro de `1` a `100`; quando omitido na inclusão, assume `1`. Zero, negativos, frações e valores acima do limite retornam `400 VALIDATION_ERROR`.
 
 Corpo para adicionar uma receita:
 
 ```json
 {
-  "recipeId": 42
+  "recipeId": 42,
+  "quantity": 2
+}
+```
+
+Corpo para alterar somente a quantidade planejada:
+
+```json
+{
+  "quantity": 3
 }
 ```
 
@@ -178,7 +191,24 @@ Resposta do planejamento:
       "servings": 4,
       "preparationTimeMinutes": 30,
       "createdAt": "2026-08-01T12:00:00Z",
-      "updatedAt": "2026-08-01T12:00:00Z"
+      "updatedAt": "2026-08-01T12:00:00Z",
+      "plannedQuantity": 3
+    }
+  ]
+}
+```
+
+A lista de compras soma ingredientes com o mesmo ID e a mesma unidade depois de multiplicar cada quantidade por `plannedQuantity`. Medidas contínuas, como `GRAM`, `KILOGRAM`, `MILLILITER` e `LITER`, preservam frações. Somente `UNIT`, que representa itens discretos, é arredondada para cima após a soma consolidada.
+
+```json
+{
+  "weekStart": "2026-08-03",
+  "items": [
+    {
+      "ingredientId": 7,
+      "ingredientName": "Ovo",
+      "quantity": 2,
+      "unit": "UNIT"
     }
   ]
 }
@@ -288,7 +318,8 @@ As migrações atuais são:
 4. índice de busca por trecho no nome dos ingredientes;
 5. catálogo inicial de ingredientes;
 6. índice de busca por trecho no nome das receitas;
-7. entradas persistentes do planejamento semanal.
+7. entradas persistentes do planejamento semanal;
+8. quantidade de preparos por receita planejada.
 
 Os índices das migrações 4 e 6 exigem a extensão PostgreSQL `pg_trgm`. Em produção, um DBA ou a infraestrutura como código deve executar `CREATE EXTENSION IF NOT EXISTS pg_trgm` antes da aplicação das migrações; a credencial normal do backend/Flyway não deve receber `CREATE` no banco apenas para instalar extensões. O Compose local pré-provisiona a extensão pelo script `db/bootstrap/postgres_extensions.sql` somente ao inicializar um volume novo, e os Testcontainers executam o mesmo bootstrap antes do Flyway.
 
@@ -309,7 +340,6 @@ O Docker Desktop deve estar ativo.
 
 ## Recursos ainda não implementados
 
-- lista de compras;
 - despensa;
 - recuperação/verificação de conta e MFA;
 - propriedade e compartilhamento de receitas;

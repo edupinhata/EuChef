@@ -91,9 +91,25 @@ export interface Recipe extends Omit<
 
 export type RecipeSummary = Omit<Recipe, "ingredients" | "preparationSteps">;
 
+export interface WeeklyPlanRecipe extends RecipeSummary {
+  plannedQuantity: number;
+}
+
 export interface WeeklyPlan {
   weekStart: string;
-  recipes: RecipeSummary[];
+  recipes: WeeklyPlanRecipe[];
+}
+
+export interface ShoppingListItem {
+  ingredientId: number;
+  ingredientName: string;
+  quantity: number;
+  unit: MeasurementUnit;
+}
+
+export interface ShoppingList {
+  weekStart: string;
+  items: ShoppingListItem[];
 }
 
 export interface AuthenticatedUser {

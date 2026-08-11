@@ -8,7 +8,7 @@ import {
   api,
   resetApiSecurityStateForTests,
 } from "../api/client";
-import type { RecipeSummary, WeeklyPlan } from "../api/types";
+import type { WeeklyPlan, WeeklyPlanRecipe } from "../api/types";
 import { WeeklyPlanPage } from "./WeeklyPlanPage";
 
 afterEach(() => {
@@ -62,6 +62,15 @@ describe("WeeklyPlanPage", () => {
   );
 
   it("loads and displays the selected persisted week", async () => {
+    vi.spyOn(api.recipes, "list").mockResolvedValue({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+      hasNext: false,
+      hasPrevious: false,
+    });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
@@ -76,6 +85,7 @@ describe("WeeklyPlanPage", () => {
             preparationTimeMinutes: 45,
             createdAt: "2026-07-20T12:00:00Z",
             updatedAt: "2026-07-20T12:00:00Z",
+            plannedQuantity: 1,
           },
         ],
       }),
@@ -101,6 +111,83 @@ describe("WeeklyPlanPage", () => {
       "/api/v1/weekly-plans/2026-07-27",
       expect.objectContaining({ credentials: "same-origin" }),
     );
+  });
+
+  it("updates how many times a planned recipe will be prepared", async () => {
+    const user = userEvent.setup();
+    const recipe: WeeklyPlanRecipe = {
+      id: 7,
+      name: "Risoto de cogumelos",
+      servings: 4,
+      preparationTimeMinutes: 45,
+      createdAt: "2026-07-20T12:00:00Z",
+      updatedAt: "2026-07-20T12:00:00Z",
+      plannedQuantity: 2,
+    };
+    vi.spyOn(api.weeklyPlans, "get").mockResolvedValue({
+      weekStart: "2026-07-27",
+      recipes: [recipe],
+    });
+    vi.spyOn(api.recipes, "list").mockResolvedValue({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+      hasNext: false,
+      hasPrevious: false,
+    });
+    const updateQuantity = vi
+      .spyOn(api.weeklyPlans, "updateRecipeQuantity")
+      .mockResolvedValue({
+        weekStart: "2026-07-27",
+        recipes: [{ ...recipe, plannedQuantity: 3 }],
+      });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["shopping-lists", "2026-07-27"], {
+      weekStart: "2026-07-27",
+      items: [],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/semana/2026-07-27"]}>
+          <Routes>
+            <Route path="/semana/:weekStart" element={<WeeklyPlanPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const quantity = await screen.findByRole("spinbutton", {
+      name: `Quantidade de ${recipe.name}`,
+    });
+    expect(quantity).toHaveValue(2);
+    await user.clear(quantity);
+    expect(quantity).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getByText("Informe um número inteiro entre 1 e 100."),
+    ).toBeInTheDocument();
+    await user.type(quantity, "3");
+    await user.click(
+      screen.getByRole("button", {
+        name: `Atualizar quantidade de ${recipe.name}`,
+      }),
+    );
+
+    await waitFor(() =>
+      expect(updateQuantity).toHaveBeenCalledWith("2026-07-27", recipe.id, 3),
+    );
+    expect(quantity).toHaveValue(3);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      `Quantidade de ${recipe.name} atualizada.`,
+    );
+    expect(
+      queryClient.getQueryState(["shopping-lists", "2026-07-27"])
+        ?.isInvalidated,
+    ).toBe(true);
   });
 
   it("navigates to the previous and next persisted weeks", async () => {
@@ -133,15 +220,16 @@ describe("WeeklyPlanPage", () => {
 
   it("searches, adds and removes recipes from the selected week", async () => {
     const user = userEvent.setup();
-    const risotto: RecipeSummary = {
+    const risotto: WeeklyPlanRecipe = {
       id: 7,
       name: "Risoto de cogumelos",
       servings: 4,
       preparationTimeMinutes: 45,
       createdAt: "2026-07-20T12:00:00Z",
       updatedAt: "2026-07-20T12:00:00Z",
+      plannedQuantity: 1,
     };
-    const soup: RecipeSummary = {
+    const soup: WeeklyPlanRecipe = {
       ...risotto,
       id: 8,
       name: "Sopa de legumes",
@@ -192,7 +280,6 @@ describe("WeeklyPlanPage", () => {
     );
 
     await screen.findByText(risotto.name);
-    await user.click(screen.getByRole("button", { name: "Escolher receitas" }));
     const search = screen.getByRole("searchbox", { name: "Buscar receitas" });
     await user.type(search, "sopa");
     await waitFor(() =>
@@ -227,13 +314,14 @@ describe("WeeklyPlanPage", () => {
 
   it("updates the original week cache when navigation happens during an addition", async () => {
     const user = userEvent.setup();
-    const recipe: RecipeSummary = {
+    const recipe: WeeklyPlanRecipe = {
       id: 10,
       name: "Torta de legumes",
       servings: 6,
       preparationTimeMinutes: 50,
       createdAt: "2026-07-20T12:00:00Z",
       updatedAt: "2026-07-20T12:00:00Z",
+      plannedQuantity: 1,
     };
     vi.spyOn(api.weeklyPlans, "get").mockImplementation((weekStart) =>
       Promise.resolve({ weekStart, recipes: [] }),
@@ -269,9 +357,6 @@ describe("WeeklyPlanPage", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "Escolher receitas" }),
-    );
-    await user.click(
       await screen.findByRole("button", { name: `Adicionar ${recipe.name}` }),
     );
     await user.click(screen.getByRole("button", { name: "Próxima semana" }));
@@ -291,13 +376,14 @@ describe("WeeklyPlanPage", () => {
 
   it("invalidates the original week when navigation happens during a removal", async () => {
     const user = userEvent.setup();
-    const recipe: RecipeSummary = {
+    const recipe: WeeklyPlanRecipe = {
       id: 11,
       name: "Caldo de abóbora",
       servings: 4,
       preparationTimeMinutes: 35,
       createdAt: "2026-07-20T12:00:00Z",
       updatedAt: "2026-07-20T12:00:00Z",
+      plannedQuantity: 1,
     };
     vi.spyOn(api.weeklyPlans, "get").mockImplementation((weekStart) =>
       Promise.resolve({
@@ -342,19 +428,29 @@ describe("WeeklyPlanPage", () => {
     );
   });
 
-  it("shows a removal error without opening the recipe chooser", async () => {
+  it("shows a removal error while keeping recipe search available", async () => {
     const user = userEvent.setup();
-    const recipe: RecipeSummary = {
+    const recipe: WeeklyPlanRecipe = {
       id: 9,
       name: "Ensopado de legumes",
       servings: 4,
       preparationTimeMinutes: 40,
       createdAt: "2026-07-20T12:00:00Z",
       updatedAt: "2026-07-20T12:00:00Z",
+      plannedQuantity: 1,
     };
     vi.spyOn(api.weeklyPlans, "get").mockResolvedValue({
       weekStart: "2026-07-27",
       recipes: [recipe],
+    });
+    vi.spyOn(api.recipes, "list").mockResolvedValue({
+      content: [],
+      page: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+      hasNext: false,
+      hasPrevious: false,
     });
     vi.spyOn(api.weeklyPlans, "removeRecipe").mockRejectedValue(
       new ApiClientError("Não foi possível remover esta receita.", 500),
@@ -377,12 +473,12 @@ describe("WeeklyPlanPage", () => {
       await screen.findByRole("button", { name: `Remover ${recipe.name}` }),
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível remover esta receita.",
-    );
     expect(
-      screen.queryByRole("heading", { name: "Adicionar receitas à semana" }),
-    ).not.toBeInTheDocument();
+      await screen.findByText("Não foi possível remover esta receita."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: "Buscar receitas" }),
+    ).toBeInTheDocument();
   });
 });
 

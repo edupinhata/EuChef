@@ -18,7 +18,7 @@ export function AppRouter() {
           <Route path="/semana/:weekStart" element={<WeeklyPlanPage />} />
           <Route path="/receitas" element={<RecipesPage />} />
           <Route path="/ingredientes" element={<IngredientsPage />} />
-          <Route path="/compras" element={<ShoppingListPage />} />
+          <Route path="/compras/:weekStart" element={<ShoppingListPage />} />
           <Route path="/despensa" element={<PantryPage />} />
           <Route path="*" element={<Navigate to="/semana/atual" replace />} />
         </Route>

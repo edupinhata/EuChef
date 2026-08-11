@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import type { Ingredient } from "../api/types";
 import { ApiClientError, api } from "../api/client";
 import { RecipeForm } from "../features/recipes/RecipeForm";
+import { currentWeekStart } from "../features/weekly-plan/week";
 
 export function RecipesPage() {
   const queryClient = useQueryClient();
@@ -71,7 +72,10 @@ export function RecipesPage() {
         ? api.recipes.create(payload)
         : api.recipes.update(editingId, payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["recipes"] }),
+        queryClient.invalidateQueries({ queryKey: ["shopping-lists"] }),
+      ]);
       setFormOpen(false);
       setEditingId(null);
     },
@@ -88,7 +92,24 @@ export function RecipesPage() {
           current === variables.sourcePage ? current - 1 : current,
         );
       }
-      await queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["recipes"] }),
+        queryClient.invalidateQueries({ queryKey: ["weekly-plans"] }),
+        queryClient.invalidateQueries({ queryKey: ["shopping-lists"] }),
+      ]);
+    },
+  });
+  const addToWeek = useMutation({
+    mutationFn: (recipeId: number) =>
+      api.weeklyPlans.addRecipe(currentWeekStart(), recipeId),
+    onSuccess: async (updatedPlan) => {
+      queryClient.setQueryData(
+        ["weekly-plans", updatedPlan.weekStart],
+        updatedPlan,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["shopping-lists", updatedPlan.weekStart],
+      });
     },
   });
 
@@ -108,7 +129,10 @@ export function RecipesPage() {
 
   const recipeItems = recipes.data?.content ?? [];
   const actionsDisabled =
-    recipes.isFetching || save.isPending || remove.isPending;
+    recipes.isFetching ||
+    save.isPending ||
+    remove.isPending ||
+    addToWeek.isPending;
 
   return (
     <section className="page" aria-labelledby="recipes-title">
@@ -235,6 +259,15 @@ export function RecipesPage() {
                   <button
                     className="text-button"
                     type="button"
+                    aria-label={`Adicionar ${recipe.name} à semana atual`}
+                    disabled={actionsDisabled}
+                    onClick={() => addToWeek.mutate(recipe.id)}
+                  >
+                    Adicionar à semana
+                  </button>
+                  <button
+                    className="text-button"
+                    type="button"
                     aria-label={`Editar ${recipe.name}`}
                     disabled={actionsDisabled}
                     onClick={() => {
@@ -265,6 +298,19 @@ export function RecipesPage() {
         <div className="form-alert" role="alert">
           {errorMessage(remove.error) ?? "Não foi possível excluir a receita."}
         </div>
+      )}
+
+      {addToWeek.isError && (
+        <div className="form-alert" role="alert">
+          {errorMessage(addToWeek.error) ??
+            "Não foi possível adicionar a receita à semana atual."}
+        </div>
+      )}
+
+      {addToWeek.isSuccess && (
+        <p className="status-message" role="status">
+          Receita adicionada ao planejamento da semana atual.
+        </p>
       )}
 
       {recipes.data && recipes.data.totalPages > 1 && (

@@ -1,6 +1,7 @@
 package br.com.eduardo.mealplanner.weeklyplan;
 
 import br.com.eduardo.mealplanner.auth.UserIdentityProvider;
+import br.com.eduardo.mealplanner.ingredient.MeasurementUnit;
 import br.com.eduardo.mealplanner.recipe.RecipeCatalog;
 import br.com.eduardo.mealplanner.recipe.RecipeSummaryResponse;
 import br.com.eduardo.mealplanner.web.DuplicateResourceException;
@@ -34,8 +35,28 @@ class WeeklyPlanService {
 		return toResponse(userId, weekStart);
 	}
 
+	@Transactional(readOnly = true)
+	ShoppingListResponse getShoppingList(String email, LocalDate weekStart) {
+		validateWeekStart(weekStart);
+		Long userId = userIdentityProvider.requireUserId(email);
+		List<ShoppingListResponse.Item> items = repository.findShoppingList(userId, weekStart)
+				.stream()
+				.map(row -> new ShoppingListResponse.Item(
+						row.getIngredientId(),
+						row.getIngredientName(),
+						row.getQuantity(),
+						MeasurementUnit.valueOf(row.getUnit())))
+				.toList();
+		return new ShoppingListResponse(weekStart, items);
+	}
+
 	@Transactional
 	WeeklyPlanResponse addRecipe(String email, LocalDate weekStart, Long recipeId) {
+		return addRecipe(email, weekStart, recipeId, 1);
+	}
+
+	@Transactional
+	WeeklyPlanResponse addRecipe(String email, LocalDate weekStart, Long recipeId, int quantity) {
 		validateWeekStart(weekStart);
 		Long userId = userIdentityProvider.requireUserIdForUpdate(email);
 		List<WeeklyPlanEntry> currentEntries = repository
@@ -47,7 +68,22 @@ class WeeklyPlanService {
 			throw new DuplicateResourceException("O planejamento semanal aceita no máximo 100 receitas");
 		}
 		recipeCatalog.requireSummariesForUpdate(List.of(recipeId));
-		repository.saveAndFlush(new WeeklyPlanEntry(userId, weekStart, recipeId));
+		repository.saveAndFlush(new WeeklyPlanEntry(userId, weekStart, recipeId, quantity));
+		return toResponse(userId, weekStart);
+	}
+
+	@Transactional
+	WeeklyPlanResponse updateQuantity(String email, LocalDate weekStart, Long recipeId, int quantity) {
+		validateWeekStart(weekStart);
+		Long userId = userIdentityProvider.requireUserIdForUpdate(email);
+		WeeklyPlanEntry entry = repository
+				.findByUserIdAndWeekStartOrderByCreatedAtAscIdAsc(userId, weekStart)
+				.stream()
+				.filter(candidate -> Objects.equals(candidate.recipeId(), recipeId))
+				.findFirst()
+				.orElseThrow(() -> new EntityNotFoundException(
+						"Receita não encontrada no planejamento desta semana"));
+		entry.updatePlannedQuantity(quantity);
 		return toResponse(userId, weekStart);
 	}
 
@@ -67,8 +103,9 @@ class WeeklyPlanService {
 		Map<Long, RecipeSummaryResponse> recipes = recipeCatalog.requireSummaries(entries.stream()
 				.map(WeeklyPlanEntry::recipeId)
 				.toList());
-		List<RecipeSummaryResponse> orderedRecipes = entries.stream()
-				.map(entry -> recipes.get(entry.recipeId()))
+		List<WeeklyPlanRecipeResponse> orderedRecipes = entries.stream()
+				.map(entry -> WeeklyPlanRecipeResponse.from(
+						recipes.get(entry.recipeId()), entry.plannedQuantity()))
 				.toList();
 		return new WeeklyPlanResponse(weekStart, orderedRecipes);
 	}

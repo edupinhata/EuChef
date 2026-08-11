@@ -9,12 +9,22 @@ beforeEach(() => {
     const path = String(input);
     const body = path.startsWith("/api/v1/weekly-plans/")
       ? { weekStart: path.split("/").at(-1), recipes: [] }
-      : {
-          id: 1,
-          displayName: "Usuário de Teste",
-          email: "teste@example.com",
-          role: "USER",
-        };
+      : path.startsWith("/api/v1/recipes")
+        ? {
+            content: [],
+            page: 0,
+            size: 20,
+            totalElements: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrevious: false,
+          }
+        : {
+            id: 1,
+            displayName: "Usuário de Teste",
+            email: "teste@example.com",
+            role: "USER",
+          };
     return {
       ok: true,
       status: 200,
@@ -37,7 +47,7 @@ describe("fundação mobile do planejador", () => {
       await screen.findByRole("heading", { name: /minha semana/i }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: /escolher receitas/i }),
+      await screen.findByRole("searchbox", { name: /buscar receitas/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/nenhuma receita planejada/i)).toBeInTheDocument();
   });

@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -35,7 +36,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+		"euchef.security.rate-limit.auth-requests=100",
+		"euchef.security.rate-limit.api-requests=1000"
+})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class WeeklyPlanApiTest {
@@ -79,6 +83,92 @@ class WeeklyPlanApiTest {
 				.andExpect(jsonPath("$.weekStart").value("2026-07-27"))
 				.andExpect(jsonPath("$.recipes.length()").value(1))
 				.andExpect(jsonPath("$.recipes[0].preparationTimeMinutes").value(30));
+	}
+
+	@Test
+	void persistsAndUpdatesHowManyTimesARecipeWillBePrepared() throws Exception {
+		String email = "weekly-quantity@example.com";
+		registerUser(email, "Quantidade semanal");
+		long recipeId = createRecipe("Receita preparada várias vezes", email);
+		String path = "/api/v1/weekly-plans/2026-07-27/recipes";
+
+		mockMvc.perform(post(path)
+				.with(csrf())
+				.with(user(email).roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{ \"recipeId\": %d, \"quantity\": 3 }".formatted(recipeId)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.recipes[0].id").value(recipeId))
+				.andExpect(jsonPath("$.recipes[0].plannedQuantity").value(3));
+
+		mockMvc.perform(put(path + "/{recipeId}", recipeId)
+				.with(csrf())
+				.with(user(email).roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{ \"quantity\": 5 }"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recipes[0].plannedQuantity").value(5));
+
+		mockMvc.perform(get("/api/v1/weekly-plans/2026-07-27")
+				.with(user(email).roles("USER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recipes[0].plannedQuantity").value(5));
+
+		for (String invalidQuantity : new String[] { "0", "101", "1.5" }) {
+			mockMvc.perform(put(path + "/{recipeId}", recipeId)
+					.with(csrf())
+					.with(user(email).roles("USER"))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{ \"quantity\": %s }".formatted(invalidQuantity)))
+					.andExpect(status().isBadRequest());
+		}
+
+		String otherEmail = "weekly-quantity-other@example.com";
+		registerUser(otherEmail, "Outro planejamento");
+		mockMvc.perform(put(path + "/{recipeId}", recipeId)
+				.with(csrf())
+				.with(user(otherEmail).roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{ \"quantity\": 2 }"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void consolidatesTheShoppingListAndRoundsFractionalUnitsUp() throws Exception {
+		String email = "weekly-shopping@example.com";
+		registerUser(email, "Lista de compras semanal");
+		long eggId = createIngredient("Ovo para lista semanal", email);
+		long flourId = createIngredient("Farinha para lista semanal", email);
+		long omeletId = createRecipeWithIngredient(
+				"Omelete semanal", email, eggId, "0.5", "UNIT");
+		long cakeId = createRecipeWithIngredient(
+				"Bolo semanal", email, eggId, "0.25", "UNIT");
+		long breadId = createRecipeWithIngredient(
+				"Pão semanal", email, flourId, "125.5", "GRAM");
+		String planPath = "/api/v1/weekly-plans/2026-07-27/recipes";
+
+		addRecipeToPlan(email, planPath, omeletId, 3);
+		addRecipeToPlan(email, planPath, cakeId, 1);
+		addRecipeToPlan(email, planPath, breadId, 3);
+
+		mockMvc.perform(get("/api/v1/weekly-plans/2026-07-27/shopping-list")
+				.with(user(email).roles("USER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.weekStart").value("2026-07-27"))
+				.andExpect(jsonPath("$.items.length()").value(2))
+				.andExpect(jsonPath("$.items[0].ingredientId").value(flourId))
+				.andExpect(jsonPath("$.items[0].quantity").value(376.5))
+				.andExpect(jsonPath("$.items[0].unit").value("GRAM"))
+				.andExpect(jsonPath("$.items[1].ingredientId").value(eggId))
+				.andExpect(jsonPath("$.items[1].quantity").value(2))
+				.andExpect(jsonPath("$.items[1].unit").value("UNIT"));
+
+		String otherEmail = "weekly-shopping-other@example.com";
+		registerUser(otherEmail, "Outra lista semanal");
+		mockMvc.perform(get("/api/v1/weekly-plans/2026-07-27/shopping-list")
+				.with(user(otherEmail).roles("USER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items").isEmpty());
 	}
 
 	@Test
@@ -392,6 +482,40 @@ class WeeklyPlanApiTest {
 				.andExpect(status().isCreated())
 				.andReturn();
 		return idFromLocation(result);
+	}
+
+	private long createRecipeWithIngredient(String name, String email, long ingredientId,
+			String quantity, String unit) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user(email).roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "name": "%s",
+						  "servings": 2,
+						  "preparationTimeMinutes": 30,
+						  "ingredients": [{
+						    "ingredientId": %d,
+						    "quantity": %s,
+						    "unit": "%s"
+						  }],
+						  "preparationSteps": ["Prepare a receita."]
+						}
+						""".formatted(name, ingredientId, quantity, unit)))
+				.andExpect(status().isCreated())
+				.andReturn();
+		return idFromLocation(result);
+	}
+
+	private void addRecipeToPlan(String email, String planPath, long recipeId, int quantity)
+			throws Exception {
+		mockMvc.perform(post(planPath)
+				.with(csrf())
+				.with(user(email).roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{ \"recipeId\": %d, \"quantity\": %d }".formatted(recipeId, quantity)))
+				.andExpect(status().isCreated());
 	}
 
 	private long createIngredient(String name, String email) throws Exception {
