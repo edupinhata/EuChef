@@ -90,7 +90,7 @@ class WeeklyPlanService {
 	@Transactional
 	void removeRecipe(String email, LocalDate weekStart, Long recipeId) {
 		validateWeekStart(weekStart);
-		Long userId = userIdentityProvider.requireUserId(email);
+		Long userId = userIdentityProvider.requireUserIdForUpdate(email);
 		long deleted = repository.deleteByUserIdAndWeekStartAndRecipeId(userId, weekStart, recipeId);
 		if (deleted == 0) {
 			throw new EntityNotFoundException("Receita não encontrada no planejamento desta semana");
