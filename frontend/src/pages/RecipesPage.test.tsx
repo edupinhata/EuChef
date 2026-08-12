@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api/client";
 import type { PagedResponse, Recipe, RecipeSummary } from "../api/types";
+import { currentWeekStart } from "../features/weekly-plan/week";
 import { RecipesPage } from "./RecipesPage";
 
 const recipe: RecipeSummary = {
@@ -71,6 +72,48 @@ describe("RecipesPage", () => {
     expect(screen.getByText("45 min")).toBeInTheDocument();
     expect(screen.getByText("4 porções")).toBeInTheDocument();
     expect(list).toHaveBeenCalledWith({ page: 0, size: 12 });
+  });
+
+  it("adds a catalog recipe to the current weekly plan", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api.recipes, "list").mockResolvedValue(page);
+    const addRecipe = vi
+      .spyOn(api.weeklyPlans, "addRecipe")
+      .mockImplementation((weekStart) =>
+        Promise.resolve({
+          weekStart,
+          recipes: [{ ...recipe, plannedQuantity: 1 }],
+        }),
+      );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const currentWeek = currentWeekStart();
+    queryClient.setQueryData(["shopping-lists", currentWeek], {
+      weekStart: currentWeek,
+      items: [],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RecipesPage />
+      </QueryClientProvider>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Adicionar ${recipe.name} à semana atual`,
+      }),
+    );
+
+    await waitFor(() => expect(addRecipe).toHaveBeenCalledTimes(1));
+    const weekStart = addRecipe.mock.calls[0]?.[0];
+    expect(weekStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(new Date(`${weekStart}T12:00:00`).getDay()).toBe(1);
+    expect(addRecipe).toHaveBeenCalledWith(weekStart, recipe.id);
+    expect(
+      queryClient.getQueryState(["shopping-lists", currentWeek])?.isInvalidated,
+    ).toBe(true);
   });
 
   it("explains when the recipe catalog is empty", async () => {
@@ -303,6 +346,10 @@ describe("RecipesPage", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+    queryClient.setQueryData(["shopping-lists", "2026-07-27"], {
+      weekStart: "2026-07-27",
+      items: [],
+    });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -379,6 +426,10 @@ describe("RecipesPage", () => {
         preparationSteps: ["Misture."],
       }),
     );
+    expect(
+      queryClient.getQueryState(["shopping-lists", "2026-07-27"])
+        ?.isInvalidated,
+    ).toBe(true);
   });
 
   it("loads the complete recipe and updates it", async () => {
@@ -566,6 +617,14 @@ describe("RecipesPage", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+    queryClient.setQueryData(["shopping-lists", "2026-07-27"], {
+      weekStart: "2026-07-27",
+      items: [],
+    });
+    queryClient.setQueryData(["weekly-plans", "2026-07-27"], {
+      weekStart: "2026-07-27",
+      recipes: [{ ...recipe, plannedQuantity: 1 }],
+    });
     render(
       <QueryClientProvider client={queryClient}>
         <RecipesPage />
@@ -581,6 +640,13 @@ describe("RecipesPage", () => {
       `Excluir a receita “${recipe.name}”? Esta ação não pode ser desfeita.`,
     );
     await waitFor(() => expect(remove).toHaveBeenCalledWith(recipe.id));
+    expect(
+      queryClient.getQueryState(["shopping-lists", "2026-07-27"])
+        ?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(["weekly-plans", "2026-07-27"])?.isInvalidated,
+    ).toBe(true);
   });
 
   it("returns to the previous page after deleting its only recipe", async () => {

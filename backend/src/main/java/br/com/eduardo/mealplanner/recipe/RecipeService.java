@@ -5,15 +5,20 @@ import br.com.eduardo.mealplanner.ingredient.IngredientReference;
 import br.com.eduardo.mealplanner.web.DuplicateResourceException;
 import br.com.eduardo.mealplanner.web.PagedResponse;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class RecipeService {
+class RecipeService implements RecipeCatalog {
 
 	private final RecipeRepository repository;
 	private final IngredientCatalog ingredientCatalog;
@@ -35,14 +40,44 @@ class RecipeService {
 	}
 
 	@Transactional(readOnly = true)
-	PagedResponse<RecipeSummaryResponse> list(int page, int size) {
-		PageRequest pageRequest = PageRequest.of(page, size, Sort.by("name").ascending().and(Sort.by("id")));
-		return PagedResponse.from(repository.findAll(pageRequest).map(this::toSummary));
+	PagedResponse<RecipeSummaryResponse> list(String query, int page, int size) {
+		String normalizedQuery = escapeLikePattern(query == null ? "" : query.trim());
+		Page<RecipeSummaryResponse> result = repository
+				.searchByNameFragment(normalizedQuery, PageRequest.of(page, size))
+				.map(this::toSummary);
+		return PagedResponse.from(result);
 	}
 
 	@Transactional(readOnly = true)
 	RecipeResponse get(Long id) {
 		return toResponse(find(id));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<Long, RecipeSummaryResponse> requireSummaries(Collection<Long> ids) {
+		return requireSummaries(ids, repository::findAllById);
+	}
+
+	@Override
+	@Transactional
+	public Map<Long, RecipeSummaryResponse> requireSummariesForUpdate(Collection<Long> ids) {
+		return requireSummaries(ids, repository::findAllByIdWithSharedLock);
+	}
+
+	private Map<Long, RecipeSummaryResponse> requireSummaries(Collection<Long> ids,
+			Function<Set<Long>, Iterable<Recipe>> finder) {
+		Set<Long> requestedIds = new LinkedHashSet<>(ids);
+		if (requestedIds.isEmpty()) {
+			return Map.of();
+		}
+		Map<Long, RecipeSummaryResponse> summaries = new LinkedHashMap<>();
+		finder.apply(requestedIds)
+				.forEach(recipe -> summaries.put(recipe.id(), toSummary(recipe)));
+		if (summaries.size() != requestedIds.size()) {
+			throw new EntityNotFoundException("Receita não encontrada");
+		}
+		return summaries;
 	}
 
 	@Transactional
@@ -129,5 +164,9 @@ class RecipeService {
 
 	private String normalize(String value) {
 		return value == null || value.isBlank() ? null : value.trim();
+	}
+
+	private String escapeLikePattern(String value) {
+		return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
 	}
 }

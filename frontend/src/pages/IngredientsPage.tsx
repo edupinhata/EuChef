@@ -58,14 +58,20 @@ export function IngredientsPage() {
         ? api.ingredients.update(editing.id, payload)
         : api.ingredients.create(payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["ingredients"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ingredients"] }),
+        queryClient.invalidateQueries({ queryKey: ["shopping-lists"] }),
+      ]);
       closeForm();
     },
   });
   const remove = useMutation({
     mutationFn: api.ingredients.delete,
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["ingredients"] }),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ingredients"] }),
+        queryClient.invalidateQueries({ queryKey: ["shopping-lists"] }),
+      ]),
   });
 
   function closeForm() {

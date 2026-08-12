@@ -6,7 +6,7 @@ const navigation = [
   { to: "/semana/atual", label: "Semana", icon: <CalendarIcon /> },
   { to: "/receitas", label: "Receitas", icon: <BookIcon /> },
   { to: "/ingredientes", label: "Ingredientes", icon: <IngredientIcon /> },
-  { to: "/compras", label: "Compras", icon: <BasketIcon /> },
+  { to: "/compras/atual", label: "Compras", icon: <BasketIcon /> },
   { to: "/despensa", label: "Despensa", icon: <PantryIcon /> },
 ];
 

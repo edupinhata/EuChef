@@ -97,6 +97,43 @@ describe("IngredientsPage", () => {
     );
   });
 
+  it("invalidates shopping lists after changing an ingredient", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api.ingredients, "list").mockResolvedValue(page);
+    const update = vi.spyOn(api.ingredients, "update").mockResolvedValue({
+      ...ingredient,
+      name: "Tomate italiano",
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["shopping-lists", "2026-07-27"], {
+      weekStart: "2026-07-27",
+      items: [],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <IngredientsPage />
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText(ingredient.name);
+    await user.click(screen.getByRole("button", { name: "Editar" }));
+    const name = screen.getByRole("textbox", { name: "Nome" });
+    await user.clear(name);
+    await user.type(name, "Tomate italiano");
+    await user.click(
+      screen.getByRole("button", { name: "Salvar ingrediente" }),
+    );
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(
+      queryClient.getQueryState(["shopping-lists", "2026-07-27"])
+        ?.isInvalidated,
+    ).toBe(true);
+  });
+
   it("distinguishes an empty search from an empty catalog", async () => {
     const user = userEvent.setup();
     const empty: PagedResponse<Ingredient> = {

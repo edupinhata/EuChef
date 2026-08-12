@@ -127,7 +127,7 @@ Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSR
 
 Ingredientes e receitas formam, nesta etapa, um catálogo compartilhado entre usuários autenticados. Propriedade e compartilhamento por autor permanecem planejados no P3 do [`TODO.md`](../TODO.md).
 
-A listagem aceita `page` (base zero, padrão `0`) e `size` (padrão `20`, máximo `100`), com ordenação estável por nome e ID. Cada item é um resumo sem `ingredients` e `preparationSteps`; obtenha o agregado completo em `GET /api/v1/recipes/{id}`.
+A listagem aceita `page` (base zero, padrão `0`), `size` (padrão `20`, máximo `100`) e `q` (trecho literal do nome, até 100 caracteres), com ordenação estável por nome e ID. A busca não diferencia maiúsculas e minúsculas; `%`, `_` e `!` são tratados literalmente. Cada item é um resumo sem `ingredients` e `preparationSteps`; obtenha o agregado completo em `GET /api/v1/recipes/{id}`.
 
 Listagens paginadas usam o envelope estável:
 
@@ -144,6 +144,75 @@ Listagens paginadas usam o envelope estável:
 ```
 
 Ao criar ou atualizar uma receita, todos os IDs de ingredientes são validados em lote. IDs ausentes retornam `404 INGREDIENTS_NOT_FOUND`; a mensagem continua legível para humanos e `details.missingIngredientIds` contém a lista numérica para clientes. Repetir o mesmo `ingredientId` na receita retorna `400 VALIDATION_ERROR`, com a chave `ingredientIdsUnique` em `fieldErrors`.
+
+## Planejamento semanal
+
+Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSRF. O planejamento e sua lista de compras são privados por usuário autenticado, mesmo que o catálogo de receitas ainda seja compartilhado.
+
+| Método   | Caminho                                                     | Resultado                         |
+| -------- | ----------------------------------------------------------- | --------------------------------- |
+| `GET`    | `/api/v1/weekly-plans/{weekStart}`                          | `200`, planejamento da semana     |
+| `GET`    | `/api/v1/weekly-plans/{weekStart}/shopping-list`            | `200`, ingredientes consolidados  |
+| `POST`   | `/api/v1/weekly-plans/{weekStart}/recipes`                  | `201`, planejamento atualizado    |
+| `PUT`    | `/api/v1/weekly-plans/{weekStart}/recipes/{recipeId}`       | `200`, quantidade atualizada      |
+| `DELETE` | `/api/v1/weekly-plans/{weekStart}/recipes/{recipeId}`       | `204`                             |
+
+`weekStart` usa o formato ISO `AAAA-MM-DD` e deve representar uma segunda-feira. Valores malformados e datas de outros dias retornam `400 INVALID_WEEK_START`. Uma semana aceita no máximo 100 receitas e não permite repetir a mesma receita; duplicidades retornam `409 DUPLICATE_RESOURCE`. Receita inexistente e tentativa de alterar ou remover um vínculo ausente ou pertencente a outro usuário retornam `404 RESOURCE_NOT_FOUND`.
+
+`quantity` representa quantas vezes a receita será preparada naquela semana. É um inteiro de `1` a `100`; quando omitido na inclusão, assume `1`. Zero, negativos, frações e valores acima do limite retornam `400 VALIDATION_ERROR`.
+
+Corpo para adicionar uma receita:
+
+```json
+{
+  "recipeId": 42,
+  "quantity": 2
+}
+```
+
+Corpo para alterar somente a quantidade planejada:
+
+```json
+{
+  "quantity": 3
+}
+```
+
+Resposta do planejamento:
+
+```json
+{
+  "weekStart": "2026-08-03",
+  "recipes": [
+    {
+      "id": 42,
+      "name": "Sopa de legumes",
+      "description": "Leve e rápida.",
+      "servings": 4,
+      "preparationTimeMinutes": 30,
+      "createdAt": "2026-08-01T12:00:00Z",
+      "updatedAt": "2026-08-01T12:00:00Z",
+      "plannedQuantity": 3
+    }
+  ]
+}
+```
+
+A lista de compras soma ingredientes com o mesmo ID e a mesma unidade depois de multiplicar cada quantidade por `plannedQuantity`. Medidas contínuas, como `GRAM`, `KILOGRAM`, `MILLILITER` e `LITER`, preservam frações. Somente `UNIT`, que representa itens discretos, é arredondada para cima após a soma consolidada.
+
+```json
+{
+  "weekStart": "2026-08-03",
+  "items": [
+    {
+      "ingredientId": 7,
+      "ingredientName": "Ovo",
+      "quantity": 2,
+      "unit": "UNIT"
+    }
+  ]
+}
+```
 
 ## Administração e documentação interativa
 
@@ -246,9 +315,13 @@ As migrações atuais são:
 1. ingredientes;
 2. receitas, ingredientes associados e etapas;
 3. usuários da aplicação;
-4. índice de busca por trecho no nome dos ingredientes.
+4. índice de busca por trecho no nome dos ingredientes;
+5. catálogo inicial de ingredientes;
+6. índice de busca por trecho no nome das receitas;
+7. entradas persistentes do planejamento semanal;
+8. quantidade de preparos por receita planejada.
 
-O índice da migração 4 exige a extensão PostgreSQL `pg_trgm`. Em produção, um DBA ou a infraestrutura como código deve executar `CREATE EXTENSION IF NOT EXISTS pg_trgm` antes da aplicação da migração; a credencial normal do backend/Flyway não deve receber `CREATE` no banco apenas para instalar extensões. O Compose local pré-provisiona a extensão pelo script `db/bootstrap/postgres_extensions.sql` somente ao inicializar um volume novo, e os Testcontainers executam o mesmo bootstrap antes do Flyway.
+Os índices das migrações 4 e 6 exigem a extensão PostgreSQL `pg_trgm`. Em produção, um DBA ou a infraestrutura como código deve executar `CREATE EXTENSION IF NOT EXISTS pg_trgm` antes da aplicação das migrações; a credencial normal do backend/Flyway não deve receber `CREATE` no banco apenas para instalar extensões. O Compose local pré-provisiona a extensão pelo script `db/bootstrap/postgres_extensions.sql` somente ao inicializar um volume novo, e os Testcontainers executam o mesmo bootstrap antes do Flyway.
 
 Em um volume local criado antes desse bootstrap, provisione a extensão uma vez antes de atualizar o backend:
 
@@ -267,8 +340,6 @@ O Docker Desktop deve estar ativo.
 
 ## Recursos ainda não implementados
 
-- planejamento semanal persistente;
-- lista de compras;
 - despensa;
 - recuperação/verificação de conta e MFA;
 - propriedade e compartilhamento de receitas;

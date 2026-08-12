@@ -5,16 +5,32 @@ import App from "../App";
 import { resetApiSecurityStateForTests } from "../api/client";
 
 beforeEach(() => {
-  vi.spyOn(globalThis, "fetch").mockResolvedValue({
-    ok: true,
-    status: 200,
-    json: async () => ({
-      id: 1,
-      displayName: "Usuário de Teste",
-      email: "teste@example.com",
-      role: "USER",
-    }),
-  } as Response);
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input);
+    const body = path.startsWith("/api/v1/weekly-plans/")
+      ? { weekStart: path.split("/").at(-1), recipes: [] }
+      : path.startsWith("/api/v1/recipes")
+        ? {
+            content: [],
+            page: 0,
+            size: 20,
+            totalElements: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrevious: false,
+          }
+        : {
+            id: 1,
+            displayName: "Usuário de Teste",
+            email: "teste@example.com",
+            role: "USER",
+          };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => body,
+    } as Response;
+  });
   window.history.replaceState({}, "", "/");
 });
 
@@ -31,7 +47,7 @@ describe("fundação mobile do planejador", () => {
       await screen.findByRole("heading", { name: /minha semana/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /escolher receitas/i }),
+      await screen.findByRole("searchbox", { name: /buscar receitas/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/nenhuma receita planejada/i)).toBeInTheDocument();
   });

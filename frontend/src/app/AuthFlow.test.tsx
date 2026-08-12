@@ -43,6 +43,11 @@ describe("fluxo de autenticação", () => {
         ok: true,
         status: 200,
         json: async () => authenticatedUser,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ weekStart: "2026-07-27", recipes: [] }),
       } as Response);
 
     const user = userEvent.setup();
@@ -58,9 +63,12 @@ describe("fluxo de autenticação", () => {
     expect(
       await screen.findByRole("heading", { name: /minha semana/i }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
 
     expect(fetchMock.mock.calls[2]?.[0]).toBe("/api/v1/auth/login");
+    expect(String(fetchMock.mock.calls[3]?.[0])).toMatch(
+      /^\/api\/v1\/weekly-plans\/\d{4}-\d{2}-\d{2}$/,
+    );
     const loginInit = fetchMock.mock.calls[2]?.[1] as RequestInit;
     expect(loginInit.credentials).toBe("same-origin");
     expect(new Headers(loginInit.headers).get("X-CSRF-TOKEN")).toBe(

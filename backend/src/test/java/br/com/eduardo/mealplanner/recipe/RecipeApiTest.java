@@ -152,6 +152,21 @@ class RecipeApiTest {
 	}
 
 	@Test
+	void searchesRecipesByCaseInsensitiveNameFragment() throws Exception {
+		long ingredientId = createIngredient("Ingrediente para busca de receitas", "GRAM");
+		createRecipe("Frango cítrico para planejamento", ingredientId);
+		createRecipe("Torta rústica para planejamento", ingredientId);
+
+		mockMvc.perform(get("/api/v1/recipes?q=FRANGO&page=0&size=20")
+				.with(user("test@example.com").roles("USER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[*].name",
+						org.hamcrest.Matchers.hasItem("Frango cítrico para planejamento")))
+				.andExpect(jsonPath("$.content[*].name",
+						org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("Torta rústica para planejamento"))));
+	}
+
+	@Test
 	void reportsAllMissingIngredientsInOneValidationResult() throws Exception {
 		var request = """
 				{

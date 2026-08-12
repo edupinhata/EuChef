@@ -111,9 +111,9 @@ Deve ser possível ir para as receitas planejadas das semanas anteriores.
   - Seleção de múltiplos ingredientes, quantidades e unidades.
   - Inclusão, remoção e ordenação dos passos.
   - Exclusão com confirmação.
-- [ ] Implementar planejamento semanal persistente.
-  - Busca por receitas
-  - Adicionar/Remover receita do planejamento semanal
+- [x] Implementar planejamento semanal persistente.
+  - [x] Busca por receitas.
+  - [x] Adicionar/remover receita do planejamento semanal.
 - [x] Atualizar `README.md` e `docs/API.md` conforme cada entrega.
 - [ ] Adicionar espaço para fazer um embedding de um vídeo do YouTube sobre a receita a ser feita. O vídeo deve ser mais abaixo, de modo que o mais importante: ingredientes e modo de preparo, fiquem mais evidentes e rápidos de pesquisar.
 - [ ] Adicionar lugar para considerar o tempo de preparo estimado da receita.

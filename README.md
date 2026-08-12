@@ -2,7 +2,7 @@
 
 Aplicação web mobile-first para organizar receitas, planejar as refeições da semana e, nas próximas etapas, gerar listas de compras considerando os itens disponíveis na despensa.
 
-> **Estado atual:** autenticação por sessão, perfis `USER`/`ADMIN` e controles HTTP protegem a aplicação. Ingredientes e receitas possuem CRUD integrado entre backend e frontend. O planejamento persistente, a lista de compras e a despensa ainda serão implementados.
+> **Estado atual:** autenticação por sessão, perfis `USER`/`ADMIN` e controles HTTP protegem a aplicação. Ingredientes e receitas possuem CRUD integrado entre backend e frontend, e o planejamento semanal já é persistente e isolado por usuário. A lista de compras e a despensa ainda serão implementadas.
 >
 > 📋 **Pendências e preparação para produção:** consulte o [`TODO.md`](TODO.md).
 
@@ -29,7 +29,7 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 
 - shell responsivo com prioridade para celulares;
 - navegação entre Semana, Receitas, Ingredientes, Compras e Despensa;
-- tela inicial da semana e estados vazios das áreas principais;
+- planejamento semanal persistente com navegação entre semanas, busca, inclusão e remoção de receitas;
 - CRUD de ingredientes no backend e frontend;
 - CRUD de receitas no backend e frontend, com ingredientes, quantidades, unidades e passos ordenáveis;
 - cadastro, login, restauração de sessão e logout no frontend;
