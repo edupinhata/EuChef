@@ -31,7 +31,7 @@ Aplicação web mobile-first para organizar receitas, planejar as refeições da
 - navegação entre Semana, Receitas, Ingredientes, Compras e Despensa;
 - planejamento semanal persistente com navegação entre semanas, busca, inclusão e remoção de receitas;
 - CRUD de ingredientes no backend e frontend;
-- CRUD de receitas no backend e frontend, com ingredientes, quantidades, unidades e passos ordenáveis;
+- CRUD de receitas no backend e frontend, com ingredientes, quantidades, unidades, passos ordenáveis, tempo estimado e vídeo opcional do YouTube;
 - cadastro, login, restauração de sessão e logout no frontend;
 - autenticação por sessão, CSRF e autorização `USER`/`ADMIN` no backend;
 - CORS restritivo, limites de payload, rate limiting e headers de segurança;

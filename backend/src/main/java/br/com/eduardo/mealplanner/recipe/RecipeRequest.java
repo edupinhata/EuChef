@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -22,6 +23,9 @@ public record RecipeRequest(
 		@Size(max = 1500) String description,
 		@NotNull @Min(1) @Max(1000) Integer servings,
 		@NotNull @Min(0) @Max(10080) Integer preparationTimeMinutes,
+		@Size(max = 500)
+		@Pattern(regexp = "^https://(www\\.)?(youtube\\.com/watch\\?v=|youtu\\.be/)[A-Za-z0-9_-]{11}([&#?].*)?$",
+				message = "Informe uma URL válida de vídeo do YouTube") String youtubeVideoUrl,
 		@NotEmpty @Size(max = 100) List<@Valid @NotNull RecipeIngredientRequest> ingredients,
 		@NotEmpty @Size(max = 100) List<@NotBlank @Size(max = 2000) String> preparationSteps) {
 

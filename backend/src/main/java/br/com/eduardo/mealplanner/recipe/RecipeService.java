@@ -1,5 +1,7 @@
 package br.com.eduardo.mealplanner.recipe;
 
+import br.com.eduardo.mealplanner.auth.UserIdentity;
+import br.com.eduardo.mealplanner.auth.UserIdentityProvider;
 import br.com.eduardo.mealplanner.ingredient.IngredientCatalog;
 import br.com.eduardo.mealplanner.ingredient.IngredientReference;
 import br.com.eduardo.mealplanner.web.DuplicateResourceException;
@@ -22,29 +24,33 @@ class RecipeService implements RecipeCatalog {
 
 	private final RecipeRepository repository;
 	private final IngredientCatalog ingredientCatalog;
+	private final UserIdentityProvider userIdentityProvider;
 
-	RecipeService(RecipeRepository repository, IngredientCatalog ingredientCatalog) {
+	RecipeService(RecipeRepository repository, IngredientCatalog ingredientCatalog,
+			UserIdentityProvider userIdentityProvider) {
 		this.repository = repository;
 		this.ingredientCatalog = ingredientCatalog;
+		this.userIdentityProvider = userIdentityProvider;
 	}
 
 	@Transactional
-	RecipeResponse create(RecipeRequest request) {
+	RecipeResponse create(String email, RecipeRequest request) {
+		UserIdentity author = userIdentityProvider.requireUser(email);
 		String name = normalizeName(request.name());
 		ensureUniqueName(name, null);
 		Map<Long, IngredientReference> ingredientReferences = validateIngredients(request);
 		Recipe recipe = new Recipe(name, normalize(request.description()), request.servings(),
-				request.preparationTimeMinutes());
+				request.preparationTimeMinutes(), normalize(request.youtubeVideoUrl()), author.id());
 		addContents(recipe, request);
-		return toResponse(repository.saveAndFlush(recipe), ingredientReferences);
+		return toResponse(repository.saveAndFlush(recipe), ingredientReferences, author);
 	}
 
 	@Transactional(readOnly = true)
 	PagedResponse<RecipeSummaryResponse> list(String query, int page, int size) {
 		String normalizedQuery = escapeLikePattern(query == null ? "" : query.trim());
-		Page<RecipeSummaryResponse> result = repository
-				.searchByNameFragment(normalizedQuery, PageRequest.of(page, size))
-				.map(this::toSummary);
+		Page<Recipe> recipes = repository.searchByNameFragment(normalizedQuery, PageRequest.of(page, size));
+		Map<Long, UserIdentity> authors = requireAuthors(recipes.getContent());
+		Page<RecipeSummaryResponse> result = recipes.map(recipe -> toSummary(recipe, authors.get(recipe.authorId())));
 		return PagedResponse.from(result);
 	}
 
@@ -71,9 +77,11 @@ class RecipeService implements RecipeCatalog {
 		if (requestedIds.isEmpty()) {
 			return Map.of();
 		}
+		List<Recipe> recipes = new java.util.ArrayList<>();
+		finder.apply(requestedIds).forEach(recipes::add);
+		Map<Long, UserIdentity> authors = requireAuthors(recipes);
 		Map<Long, RecipeSummaryResponse> summaries = new LinkedHashMap<>();
-		finder.apply(requestedIds)
-				.forEach(recipe -> summaries.put(recipe.id(), toSummary(recipe)));
+		recipes.forEach(recipe -> summaries.put(recipe.id(), toSummary(recipe, authors.get(recipe.authorId()))));
 		if (summaries.size() != requestedIds.size()) {
 			throw new EntityNotFoundException("Receita não encontrada");
 		}
@@ -81,22 +89,27 @@ class RecipeService implements RecipeCatalog {
 	}
 
 	@Transactional
-	RecipeResponse update(Long id, RecipeRequest request) {
+	RecipeResponse update(String email, boolean administrator, Long id, RecipeRequest request) {
 		Recipe recipe = find(id);
+		UserIdentity user = userIdentityProvider.requireUser(email);
+		ensureCanChange(recipe, user.id(), administrator);
 		String name = normalizeName(request.name());
 		ensureUniqueName(name, id);
 		Map<Long, IngredientReference> ingredientReferences = validateIngredients(request);
 
 		recipe.replaceDetails(name, normalize(request.description()), request.servings(),
-				request.preparationTimeMinutes());
+				request.preparationTimeMinutes(), normalize(request.youtubeVideoUrl()));
 		repository.flush();
 		addContents(recipe, request);
-		return toResponse(repository.saveAndFlush(recipe), ingredientReferences);
+		return toResponse(repository.saveAndFlush(recipe), ingredientReferences,
+				userIdentityProvider.requireUsers(List.of(recipe.authorId())).get(recipe.authorId()));
 	}
 
 	@Transactional
-	void delete(Long id) {
-		repository.delete(find(id));
+	void delete(String email, boolean administrator, Long id) {
+		Recipe recipe = find(id);
+		ensureCanChange(recipe, userIdentityProvider.requireUser(email).id(), administrator);
+		repository.delete(recipe);
 		repository.flush();
 	}
 
@@ -126,10 +139,12 @@ class RecipeService implements RecipeCatalog {
 		Map<Long, IngredientReference> ingredientReferences = ingredientCatalog.requireAll(recipe.ingredients().stream()
 				.map(RecipeIngredient::ingredientId)
 				.toList());
-		return toResponse(recipe, ingredientReferences);
+		UserIdentity author = userIdentityProvider.requireUsers(List.of(recipe.authorId())).get(recipe.authorId());
+		return toResponse(recipe, ingredientReferences, author);
 	}
 
-	private RecipeResponse toResponse(Recipe recipe, Map<Long, IngredientReference> ingredientReferences) {
+	private RecipeResponse toResponse(Recipe recipe, Map<Long, IngredientReference> ingredientReferences,
+			UserIdentity author) {
 		List<RecipeResponse.RecipeIngredientResponse> ingredients = recipe.ingredients().stream()
 				.map(item -> {
 					IngredientReference ingredient = ingredientReferences.get(item.ingredientId());
@@ -141,12 +156,23 @@ class RecipeService implements RecipeCatalog {
 				.map(step -> new RecipeResponse.RecipeStepResponse(step.position(), step.instruction()))
 				.toList();
 		return new RecipeResponse(recipe.id(), recipe.name(), recipe.description(), recipe.servings(),
-				recipe.preparationTimeMinutes(), ingredients, steps, recipe.createdAt(), recipe.updatedAt());
+				recipe.preparationTimeMinutes(), recipe.youtubeVideoUrl(), author, ingredients, steps, recipe.createdAt(),
+				recipe.updatedAt());
 	}
 
-	private RecipeSummaryResponse toSummary(Recipe recipe) {
+	private RecipeSummaryResponse toSummary(Recipe recipe, UserIdentity author) {
 		return new RecipeSummaryResponse(recipe.id(), recipe.name(), recipe.description(), recipe.servings(),
-				recipe.preparationTimeMinutes(), recipe.createdAt(), recipe.updatedAt());
+				recipe.preparationTimeMinutes(), author, recipe.createdAt(), recipe.updatedAt());
+	}
+
+	private Map<Long, UserIdentity> requireAuthors(Collection<Recipe> recipes) {
+		return userIdentityProvider.requireUsers(recipes.stream().map(Recipe::authorId).collect(java.util.stream.Collectors.toSet()));
+	}
+
+	private void ensureCanChange(Recipe recipe, Long userId, boolean administrator) {
+		if (!administrator && !java.util.Objects.equals(recipe.authorId(), userId)) {
+			throw new RecipeAccessDeniedException();
+		}
 	}
 
 	private void ensureUniqueName(String name, Long currentId) {

@@ -27,6 +27,8 @@ class Recipe {
 	private String description;
 	private int servings;
 	private int preparationTimeMinutes;
+	private String youtubeVideoUrl;
+	private Long authorId;
 
 	@OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
 	@OrderBy("position ASC")
@@ -48,18 +50,23 @@ class Recipe {
 	protected Recipe() {
 	}
 
-	Recipe(String name, String description, int servings, int preparationTimeMinutes) {
+	Recipe(String name, String description, int servings, int preparationTimeMinutes, String youtubeVideoUrl,
+			Long authorId) {
 		this.name = name;
 		this.description = description;
 		this.servings = servings;
 		this.preparationTimeMinutes = preparationTimeMinutes;
+		this.youtubeVideoUrl = youtubeVideoUrl;
+		this.authorId = authorId;
 	}
 
-	void replaceDetails(String name, String description, int servings, int preparationTimeMinutes) {
+	void replaceDetails(String name, String description, int servings, int preparationTimeMinutes,
+			String youtubeVideoUrl) {
 		this.name = name;
 		this.description = description;
 		this.servings = servings;
 		this.preparationTimeMinutes = preparationTimeMinutes;
+		this.youtubeVideoUrl = youtubeVideoUrl;
 		ingredients.clear();
 		steps.clear();
 	}
@@ -78,6 +85,8 @@ class Recipe {
 	String description() { return description; }
 	int servings() { return servings; }
 	int preparationTimeMinutes() { return preparationTimeMinutes; }
+	String youtubeVideoUrl() { return youtubeVideoUrl; }
+	Long authorId() { return authorId; }
 	List<RecipeIngredient> ingredients() { return ingredients; }
 	List<RecipeStep> steps() { return steps; }
 	Instant createdAt() { return createdAt; }

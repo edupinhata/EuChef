@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -32,8 +33,8 @@ class RecipeController {
 	}
 
 	@PostMapping
-	ResponseEntity<RecipeResponse> create(@Valid @RequestBody RecipeRequest request) {
-		RecipeResponse response = service.create(request);
+	ResponseEntity<RecipeResponse> create(Authentication authentication, @Valid @RequestBody RecipeRequest request) {
+		RecipeResponse response = service.create(authentication.getName(), request);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}")
 				.buildAndExpand(response.id())
@@ -55,13 +56,19 @@ class RecipeController {
 	}
 
 	@PutMapping("/{id}")
-	RecipeResponse update(@PathVariable Long id, @Valid @RequestBody RecipeRequest request) {
-		return service.update(id, request);
+	RecipeResponse update(Authentication authentication, @PathVariable Long id,
+			@Valid @RequestBody RecipeRequest request) {
+		return service.update(authentication.getName(), isAdmin(authentication), id, request);
 	}
 
 	@DeleteMapping("/{id}")
-	ResponseEntity<Void> delete(@PathVariable Long id) {
-		service.delete(id);
+	ResponseEntity<Void> delete(Authentication authentication, @PathVariable Long id) {
+		service.delete(authentication.getName(), isAdmin(authentication), id);
 		return ResponseEntity.noContent().build();
+	}
+
+	private boolean isAdmin(Authentication authentication) {
+		return authentication.getAuthorities().stream()
+				.anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
 	}
 }

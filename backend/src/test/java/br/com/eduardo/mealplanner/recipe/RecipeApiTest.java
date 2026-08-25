@@ -1,6 +1,7 @@
 package br.com.eduardo.mealplanner.recipe;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,13 +14,20 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import br.com.eduardo.mealplanner.TestcontainersConfiguration;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.stream.Stream;
 
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 @AutoConfigureMockMvc
@@ -32,6 +40,17 @@ class RecipeApiTest {
 	@Autowired
 	private EntityManagerFactory entityManagerFactory;
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	@BeforeEach
+	void ensureRecipeUsersExist() {
+		insertUser("Usuário de Teste", "test@example.com", "USER");
+		insertUser("Autora da Receita", "owner@example.com", "USER");
+		insertUser("Outro Usuário", "other@example.com", "USER");
+		insertUser("Administrador", "admin@example.com", "ADMIN");
+	}
+
 	@Test
 	void createsAndRetrievesRecipeWithQuantitiesAndOrderedPreparationSteps() throws Exception {
 		long pumpkinId = createIngredient("Abóbora japonesa", "GRAM");
@@ -42,6 +61,7 @@ class RecipeApiTest {
 				  "description": "Sopa simples para dias frios",
 				  "servings": 4,
 				  "preparationTimeMinutes": 45,
+				  "youtubeVideoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 				  "ingredients": [
 				    {
 				      "ingredientId": %d,
@@ -70,6 +90,9 @@ class RecipeApiTest {
 				.content(request))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.name").value("Sopa cremosa de abóbora"))
+				.andExpect(jsonPath("$.author.displayName").value("Usuário de Teste"))
+				.andExpect(jsonPath("$.youtubeVideoUrl")
+						.value("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
 				.andExpect(jsonPath("$.ingredients.length()").value(2))
 				.andExpect(jsonPath("$.ingredients[0].ingredientName").value("Abóbora japonesa"))
 				.andExpect(jsonPath("$.ingredients[0].quantity").value(600))
@@ -82,7 +105,95 @@ class RecipeApiTest {
 		mockMvc.perform(get(location).with(user("test@example.com").roles("USER")))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.servings").value(4))
-				.andExpect(jsonPath("$.preparationTimeMinutes").value(45));
+				.andExpect(jsonPath("$.preparationTimeMinutes").value(45))
+				.andExpect(jsonPath("$.youtubeVideoUrl")
+						.value("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+	}
+
+	@ParameterizedTest
+	@MethodSource("invalidYoutubeVideoUrls")
+	void rejectsInvalidYoutubeVideoUrls(String youtubeVideoUrl) throws Exception {
+		Long ingredientId = jdbcTemplate.queryForObject("SELECT MIN(id) FROM ingredients", Long.class);
+		assertThat(ingredientId).isNotNull();
+		String request = recipeRequest("Receita com vídeo inválido", ingredientId, "Prepare a receita.")
+				.replace("\"ingredients\"", "\"youtubeVideoUrl\": \"" + youtubeVideoUrl + "\",\n  \"ingredients\"");
+
+		mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user("test@example.com").roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors.youtubeVideoUrl").isNotEmpty());
+	}
+
+	@Test
+	void allowsOnlyTheAuthorOrAnAdministratorToUpdateARecipe() throws Exception {
+		long ingredientId = createIngredient("Ingrediente para autoria", "GRAM");
+		String original = recipeRequest("Receita privada da autora", ingredientId, "Prepare a receita.");
+		String location = mockMvc.perform(post("/api/v1/recipes")
+				.with(csrf())
+				.with(user("owner@example.com").roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(original))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.author.displayName").value("Autora da Receita"))
+				.andReturn().getResponse().getHeader("Location");
+
+		String updated = recipeRequest("Receita atualizada pelo admin", ingredientId, "Prepare com cuidado.");
+		mockMvc.perform(put(location)
+				.with(csrf())
+				.with(user("other@example.com").roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(updated))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+		mockMvc.perform(delete(location)
+				.with(csrf())
+				.with(user("other@example.com").roles("USER")))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+		mockMvc.perform(put(location)
+				.with(csrf())
+				.with(user("owner@example.com").roles("USER"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(original))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.author.displayName").value("Autora da Receita"));
+
+		mockMvc.perform(put(location)
+				.with(csrf())
+				.with(user("admin@example.com").roles("ADMIN"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(updated))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Receita atualizada pelo admin"))
+				.andExpect(jsonPath("$.author.displayName").value("Autora da Receita"));
+
+		mockMvc.perform(delete(location)
+				.with(csrf())
+				.with(user("admin@example.com").roles("ADMIN")))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(get(location)
+				.with(user("owner@example.com").roles("USER")))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+	}
+
+	@Test
+	void databaseConstraintRejectsInvalidYoutubeUrlWhenJavaValidationIsBypassed() {
+		Long recipeId = jdbcTemplate.queryForObject("SELECT MIN(id) FROM recipes", Long.class);
+
+		assertThat(recipeId).isNotNull();
+		assertThatThrownBy(() -> jdbcTemplate.update(
+				"UPDATE recipes SET youtube_video_url = ? WHERE id = ?",
+				"https://evil.example/watch?v=dQw4w9WgXcQ", recipeId))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("ck_recipes_youtube_video_url");
 	}
 
 	@Test
@@ -135,13 +246,23 @@ class RecipeApiTest {
 				.andExpect(jsonPath("$.content.length()").value(2))
 				.andExpect(jsonPath("$.content[0].name").value("00 Receita paginada A"))
 				.andExpect(jsonPath("$.content[1].name").value("00 Receita paginada B"))
+				.andExpect(jsonPath("$.content[0].youtubeVideoUrl").doesNotExist())
 				.andExpect(jsonPath("$.page").value(0))
 				.andExpect(jsonPath("$.size").value(2))
 				.andExpect(jsonPath("$.totalElements").isNumber())
 				.andExpect(jsonPath("$.totalPages").isNumber())
 				.andExpect(jsonPath("$.hasNext").value(true));
 
-		assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(2);
+		long statementsForTwoRecipes = statistics.getPrepareStatementCount();
+		statistics.clear();
+
+		mockMvc.perform(get("/api/v1/recipes?page=0&size=3")
+				.with(user("test@example.com").roles("USER")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content.length()").value(3));
+
+		assertThat(statistics.getPrepareStatementCount()).isEqualTo(statementsForTwoRecipes);
+		assertThat(statementsForTwoRecipes).isLessThanOrEqualTo(3);
 	}
 
 	@Test
@@ -238,6 +359,28 @@ class RecipeApiTest {
 				  "preparationSteps": [%s]
 				}
 				""".formatted(name, ingredientId, stepJson);
+	}
+
+	private static Stream<String> invalidYoutubeVideoUrls() {
+		return Stream.of(
+				"https://evil.example/watch?v=dQw4w9WgXcQ",
+				"http://www.youtube.com/watch?v=dQw4w9WgXcQ",
+				"https://user@youtube.com/watch?v=dQw4w9WgXcQ",
+				"https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ",
+				"https://youtube.com:443/watch?v=dQw4w9WgXcQ",
+				"https://youtube.com/embed/dQw4w9WgXcQ",
+				"https://youtube.com/watch?v=short",
+				"https://youtube.com/watch?v=dQw4w9WgXcQx",
+				"https://youtube.com/watch?v=dQw4w9WgXc!",
+				"https://youtube.com/watch?v=dQw4w9WgXcQ&" + "x".repeat(500));
+	}
+
+	private void insertUser(String displayName, String email, String role) {
+		jdbcTemplate.update("""
+				INSERT INTO app_users (display_name, email, password_hash, role, enabled)
+				VALUES (?, ?, ?, ?, true)
+				ON CONFLICT (email) DO NOTHING
+				""", displayName, email, "$2a$10$012345678901234567890u012345678901234567890123456789012", role);
 	}
 
 	private void createRecipe(String name, long ingredientId) throws Exception {

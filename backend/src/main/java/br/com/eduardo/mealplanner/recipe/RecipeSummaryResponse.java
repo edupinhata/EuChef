@@ -1,5 +1,6 @@
 package br.com.eduardo.mealplanner.recipe;
 
+import br.com.eduardo.mealplanner.auth.UserIdentity;
 import java.time.Instant;
 
 public record RecipeSummaryResponse(
@@ -8,6 +9,7 @@ public record RecipeSummaryResponse(
 		String description,
 		Integer servings,
 		Integer preparationTimeMinutes,
+		UserIdentity author,
 		Instant createdAt,
 		Instant updatedAt) {
 }

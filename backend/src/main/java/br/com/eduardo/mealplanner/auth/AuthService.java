@@ -1,6 +1,10 @@
 package br.com.eduardo.mealplanner.auth;
 
+import java.util.Collection;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -65,6 +69,27 @@ class AuthService implements UserDetailsService, UserIdentityProvider {
 
 	@Override
 	@Transactional(readOnly = true)
+	public UserIdentity requireUser(String email) {
+		return repository.findByEmail(normalizeEmail(email))
+				.map(AuthService::toIdentity)
+				.orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Map<Long, UserIdentity> requireUsers(Collection<Long> ids) {
+		long expected = ids.stream().distinct().count();
+		Map<Long, UserIdentity> identities = repository.findAllById(ids).stream()
+				.map(AuthService::toIdentity)
+				.collect(Collectors.toMap(UserIdentity::id, Function.identity()));
+		if (identities.size() != expected) {
+			throw new UsernameNotFoundException("Usuário não encontrado");
+		}
+		return identities;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public UserDetails loadUserByUsername(String username) {
 		var user = repository.findByEmail(normalizeEmail(username))
 				.orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
@@ -77,5 +102,9 @@ class AuthService implements UserDetailsService, UserIdentityProvider {
 
 	static String normalizeEmail(String email) {
 		return email.strip().toLowerCase(Locale.ROOT);
+	}
+
+	private static UserIdentity toIdentity(AppUser user) {
+		return new UserIdentity(user.id(), user.displayName());
 	}
 }

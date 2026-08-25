@@ -182,6 +182,7 @@ describe("RecipeForm", () => {
     const onSubmit = vi.fn();
     const existing: Recipe = {
       id: 21,
+      author: { id: 1, displayName: "Ana Souza" },
       name: "Arroz de forno",
       description: "Receita de família",
       servings: 6,

@@ -5,16 +5,22 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { Ingredient } from "../api/types";
+import type { AuthenticatedUser, Ingredient, Recipe } from "../api/types";
 import { ApiClientError, api } from "../api/client";
 import { RecipeForm } from "../features/recipes/RecipeForm";
+import { canManageRecipe } from "../features/recipes/recipeAccess";
 import { currentWeekStart } from "../features/weekly-plan/week";
 
-export function RecipesPage() {
+interface RecipesPageProps {
+  user?: AuthenticatedUser;
+}
+
+export function RecipesPage({ user }: RecipesPageProps = {}) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [viewingId, setViewingId] = useState<number | null>(null);
   const [ingredientSearch, setIngredientSearch] = useState("");
   const [debouncedIngredientSearch, setDebouncedIngredientSearch] =
     useState("");
@@ -38,6 +44,11 @@ export function RecipesPage() {
     queryKey: ["recipes", "detail", editingId],
     queryFn: () => api.recipes.get(editingId as number),
     enabled: formOpen && editingId !== null,
+  });
+  const viewedRecipe = useQuery({
+    queryKey: ["recipes", "detail", viewingId],
+    queryFn: () => api.recipes.get(viewingId as number),
+    enabled: viewingId !== null,
   });
   const ingredients = useQuery({
     queryKey: ["ingredients", "recipe-form", debouncedIngredientSearch],
@@ -254,8 +265,18 @@ export function RecipesPage() {
                     {recipe.servings}{" "}
                     {recipe.servings === 1 ? "porção" : "porções"}
                   </span>
+                  <span>Por {recipe.author.displayName}</span>
                 </div>
                 <div className="card-actions">
+                  <button
+                    className="text-button"
+                    type="button"
+                    aria-label={`Ver ${recipe.name}`}
+                    disabled={actionsDisabled}
+                    onClick={() => setViewingId(recipe.id)}
+                  >
+                    Ver receita
+                  </button>
                   <button
                     className="text-button"
                     type="button"
@@ -265,33 +286,59 @@ export function RecipesPage() {
                   >
                     Adicionar à semana
                   </button>
-                  <button
-                    className="text-button"
-                    type="button"
-                    aria-label={`Editar ${recipe.name}`}
-                    disabled={actionsDisabled}
-                    onClick={() => {
-                      save.reset();
-                      setEditingId(recipe.id);
-                      setFormOpen(true);
-                    }}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    className="text-button text-button--danger"
-                    type="button"
-                    aria-label={`Excluir ${recipe.name}`}
-                    disabled={actionsDisabled}
-                    onClick={() => requestDelete(recipe.id, recipe.name)}
-                  >
-                    Excluir
-                  </button>
+                  {canManageRecipe(user, recipe) && (
+                    <>
+                      <button
+                        className="text-button"
+                        type="button"
+                        aria-label={`Editar ${recipe.name}`}
+                        disabled={actionsDisabled}
+                        onClick={() => {
+                          save.reset();
+                          setEditingId(recipe.id);
+                          setFormOpen(true);
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="text-button text-button--danger"
+                        type="button"
+                        aria-label={`Excluir ${recipe.name}`}
+                        disabled={actionsDisabled}
+                        onClick={() => requestDelete(recipe.id, recipe.name)}
+                      >
+                        Excluir
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </article>
           ))}
         </div>
+      )}
+
+      {viewingId !== null && (
+        <section
+          className="editor-card recipe-detail"
+          aria-label="Detalhes da receita"
+        >
+          {viewedRecipe.isLoading && <p>Carregando receita…</p>}
+          {viewedRecipe.isError && (
+            <div className="form-alert" role="alert">
+              Não foi possível carregar os detalhes da receita.
+            </div>
+          )}
+          {viewedRecipe.data && <RecipeDetails recipe={viewedRecipe.data} />}
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => setViewingId(null)}
+          >
+            Fechar detalhes
+          </button>
+        </section>
       )}
 
       {remove.isError && (
@@ -342,4 +389,59 @@ export function RecipesPage() {
 
 function errorMessage(error: Error | null) {
   return error instanceof ApiClientError ? error.message : error?.message;
+}
+
+function RecipeDetails({ recipe }: { recipe: Recipe }) {
+  const videoId = youtubeVideoId(recipe.youtubeVideoUrl);
+  return (
+    <>
+      <h2>{recipe.name}</h2>
+      <div className="metadata-row">
+        <span>{recipe.preparationTimeMinutes} min</span>
+        <span>
+          {recipe.servings} {recipe.servings === 1 ? "porção" : "porções"}
+        </span>
+      </div>
+      <h3>Ingredientes</h3>
+      <ul>
+        {recipe.ingredients.map((ingredient) => (
+          <li key={ingredient.ingredientId}>
+            {ingredient.quantity} {ingredient.unit} de{" "}
+            {ingredient.ingredientName}
+            {ingredient.notes ? ` — ${ingredient.notes}` : ""}
+          </li>
+        ))}
+      </ul>
+      <h3>Modo de preparo</h3>
+      <ol>
+        {recipe.preparationSteps.map((step) => (
+          <li key={step.position}>{step.instruction}</li>
+        ))}
+      </ol>
+      {videoId && (
+        <div className="recipe-video">
+          <h3>Vídeo</h3>
+          <iframe
+            title={`Vídeo da receita ${recipe.name}`}
+            src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-presentation"
+            allowFullScreen
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function youtubeVideoId(url?: string) {
+  if (!url) {
+    return null;
+  }
+  const match = url.match(
+    /^https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[&#?].*)?$/,
+  );
+  return match?.[1] ?? null;
 }
