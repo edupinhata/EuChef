@@ -125,9 +125,11 @@ Todos os endpoints exigem `USER` ou `ADMIN`; `POST`, `PUT` e `DELETE` exigem CSR
 | `PUT`    | `/api/v1/recipes/{id}` | `200`                    |
 | `DELETE` | `/api/v1/recipes/{id}` | `204`                    |
 
-Ingredientes e receitas formam, nesta etapa, um catálogo compartilhado entre usuários autenticados. Propriedade e compartilhamento por autor permanecem planejados no P3 do [`TODO.md`](../TODO.md).
+Ingredientes e receitas formam um catálogo compartilhado entre usuários autenticados. Cada receita expõe `author.id` e `author.displayName`, sem divulgar o e-mail do autor. A criação atribui a receita ao usuário autenticado. Somente o autor ou um usuário `ADMIN` pode atualizar ou excluir a receita; os demais recebem `403 ACCESS_DENIED`. Receitas anteriores à introdução da autoria permanecem preservadas e são atribuídas à conta técnica desabilitada `Catálogo EuChef`.
 
 A listagem aceita `page` (base zero, padrão `0`), `size` (padrão `20`, máximo `100`) e `q` (trecho literal do nome, até 100 caracteres), com ordenação estável por nome e ID. A busca não diferencia maiúsculas e minúsculas; `%`, `_` e `!` são tratados literalmente. Cada item é um resumo sem `ingredients` e `preparationSteps`; obtenha o agregado completo em `GET /api/v1/recipes/{id}`.
+
+O contrato completo inclui `author` somente para leitura e aceita `youtubeVideoUrl` opcional, limitado a 500 caracteres e exclusivamente a URLs HTTPS de `youtube.com/watch?v=...` ou `youtu.be/...` com um ID de vídeo de 11 caracteres. A interface converte esse valor para um embed com privacidade aprimorada em `youtube-nocookie.com`, exibido depois dos ingredientes e do modo de preparo. `preparationTimeMinutes` informa o tempo estimado em minutos, entre `0` e `10080`.
 
 Listagens paginadas usam o envelope estável:
 
@@ -190,6 +192,10 @@ Resposta do planejamento:
       "description": "Leve e rápida.",
       "servings": 4,
       "preparationTimeMinutes": 30,
+      "author": {
+        "id": 7,
+        "displayName": "Ana Souza"
+      },
       "createdAt": "2026-08-01T12:00:00Z",
       "updatedAt": "2026-08-01T12:00:00Z",
       "plannedQuantity": 3
@@ -319,7 +325,9 @@ As migrações atuais são:
 5. catálogo inicial de ingredientes;
 6. índice de busca por trecho no nome das receitas;
 7. entradas persistentes do planejamento semanal;
-8. quantidade de preparos por receita planejada.
+8. quantidade de preparos por receita planejada;
+9. URL opcional de vídeo do YouTube nas receitas;
+10. autoria obrigatória das receitas, com backfill do catálogo legado para uma conta técnica desabilitada, chave estrangeira restritiva e índice por autor.
 
 Os índices das migrações 4 e 6 exigem a extensão PostgreSQL `pg_trgm`. Em produção, um DBA ou a infraestrutura como código deve executar `CREATE EXTENSION IF NOT EXISTS pg_trgm` antes da aplicação das migrações; a credencial normal do backend/Flyway não deve receber `CREATE` no banco apenas para instalar extensões. O Compose local pré-provisiona a extensão pelo script `db/bootstrap/postgres_extensions.sql` somente ao inicializar um volume novo, e os Testcontainers executam o mesmo bootstrap antes do Flyway.
 
@@ -342,5 +350,5 @@ O Docker Desktop deve estar ativo.
 
 - despensa;
 - recuperação/verificação de conta e MFA;
-- propriedade e compartilhamento de receitas;
+- compartilhamento explícito de receitas com outros usuários;
 - OIDC/SSO, recomendado como evolução quando um provedor de identidade for escolhido.

@@ -82,6 +82,8 @@ class WeeklyPlanApiTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.weekStart").value("2026-07-27"))
 				.andExpect(jsonPath("$.recipes.length()").value(1))
+				.andExpect(jsonPath("$.recipes[0].author.displayName").value("Dono do planejamento"))
+				.andExpect(jsonPath("$.recipes[0].author.email").doesNotExist())
 				.andExpect(jsonPath("$.recipes[0].preparationTimeMinutes").value(30));
 	}
 

@@ -1,5 +1,6 @@
 package br.com.eduardo.mealplanner.recipe;
 
+import br.com.eduardo.mealplanner.auth.UserIdentity;
 import br.com.eduardo.mealplanner.ingredient.MeasurementUnit;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,6 +12,8 @@ public record RecipeResponse(
 		String description,
 		Integer servings,
 		Integer preparationTimeMinutes,
+		String youtubeVideoUrl,
+		UserIdentity author,
 		List<RecipeIngredientResponse> ingredients,
 		List<RecipeStepResponse> preparationSteps,
 		Instant createdAt,

@@ -1,5 +1,6 @@
 package br.com.eduardo.mealplanner.weeklyplan;
 
+import br.com.eduardo.mealplanner.auth.UserIdentity;
 import br.com.eduardo.mealplanner.recipe.RecipeSummaryResponse;
 import java.time.Instant;
 
@@ -9,6 +10,7 @@ record WeeklyPlanRecipeResponse(
 		String description,
 		Integer servings,
 		Integer preparationTimeMinutes,
+		UserIdentity author,
 		Instant createdAt,
 		Instant updatedAt,
 		Integer plannedQuantity) {
@@ -20,6 +22,7 @@ record WeeklyPlanRecipeResponse(
 				recipe.description(),
 				recipe.servings(),
 				recipe.preparationTimeMinutes(),
+				recipe.author(),
 				recipe.createdAt(),
 				recipe.updatedAt(),
 				plannedQuantity);

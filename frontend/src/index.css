@@ -641,6 +641,18 @@ p {
   font-size: 0.82rem;
 }
 
+.recipe-detail h3 {
+  margin-top: 24px;
+}
+
+.recipe-video iframe {
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: var(--radius-lg);
+}
+
 .unit-chip,
 .season-chip {
   padding: 5px 9px;

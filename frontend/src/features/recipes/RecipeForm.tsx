@@ -35,6 +35,7 @@ interface FormValues {
   description: string;
   servings: number;
   preparationTimeMinutes: number;
+  youtubeVideoUrl: string;
   ingredients: IngredientValues[];
   preparationSteps: StepValues[];
 }
@@ -63,6 +64,7 @@ function formDefaults(recipe?: Recipe): FormValues {
       description: "",
       servings: 1,
       preparationTimeMinutes: 0,
+      youtubeVideoUrl: "",
       ingredients: [{ ...emptyIngredient }],
       preparationSteps: [{ instruction: "" }],
     };
@@ -72,6 +74,7 @@ function formDefaults(recipe?: Recipe): FormValues {
     description: recipe.description ?? "",
     servings: recipe.servings,
     preparationTimeMinutes: recipe.preparationTimeMinutes,
+    youtubeVideoUrl: recipe.youtubeVideoUrl ?? "",
     ingredients: recipe.ingredients.map((ingredient) => ({
       ingredientId: ingredient.ingredientId,
       quantity: String(ingredient.quantity),
@@ -131,6 +134,7 @@ export function RecipeForm({
       description: values.description.trim() || undefined,
       servings: values.servings,
       preparationTimeMinutes: values.preparationTimeMinutes,
+      youtubeVideoUrl: values.youtubeVideoUrl.trim() || undefined,
       ingredients: values.ingredients.map((ingredient) => ({
         ingredientId: ingredient.ingredientId,
         quantity: Number(ingredient.quantity),
@@ -196,6 +200,26 @@ export function RecipeForm({
             validate: (value) =>
               (Number.isInteger(value) && value >= 0 && value <= 10080) ||
               "Informe minutos inteiros entre 0 e 10080.",
+          })}
+        />
+      </FormField>
+
+      <FormField
+        label="Vídeo do YouTube (opcional)"
+        error={errors.youtubeVideoUrl?.message}
+        wide
+      >
+        <input
+          id="recipe-youtube-video"
+          type="url"
+          maxLength={500}
+          placeholder="https://www.youtube.com/watch?v=..."
+          {...register("youtubeVideoUrl", {
+            pattern: {
+              value:
+                /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[A-Za-z0-9_-]{11}([&#?].*)?$/,
+              message: "Informe uma URL válida de vídeo do YouTube.",
+            },
           })}
         />
       </FormField>

@@ -22,6 +22,14 @@ class InitialCatalogMigrationTest {
 	void initializesACompleteCatalogInAnEmptyDatabase() {
 		Long ingredientCount = count("SELECT COUNT(*) FROM ingredients");
 		Long recipeCount = count("SELECT COUNT(*) FROM recipes");
+		Long legacyRecipesWithDisabledCatalogAuthor = count("""
+				SELECT COUNT(*)
+				FROM recipes recipe
+				JOIN app_users author ON author.id = recipe.author_id
+				WHERE author.display_name = 'Catálogo EuChef'
+				  AND author.email = 'catalogo@euchef.local'
+				  AND author.enabled = FALSE
+				""");
 		Long describedAndNourishedIngredients = count("""
 				SELECT COUNT(*)
 				FROM ingredients
@@ -123,6 +131,7 @@ class InitialCatalogMigrationTest {
 
 		assertThat(ingredientCount).isEqualTo(200L);
 		assertThat(recipeCount).isEqualTo(30L);
+		assertThat(legacyRecipesWithDisabledCatalogAuthor).isEqualTo(recipeCount);
 		assertThat(describedAndNourishedIngredients).isEqualTo(200L);
 		assertThat(ingredientsUsedByRecipes).isEqualTo(200L);
 		assertThat(distinctNutritionProfiles).isGreaterThanOrEqualTo(100L);

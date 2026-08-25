@@ -3,6 +3,7 @@ package br.com.eduardo.mealplanner.web;
 import br.com.eduardo.mealplanner.auth.EmailAlreadyRegisteredException;
 import br.com.eduardo.mealplanner.auth.InvalidCredentialsException;
 import br.com.eduardo.mealplanner.ingredient.IngredientsNotFoundException;
+import br.com.eduardo.mealplanner.recipe.RecipeAccessDeniedException;
 import br.com.eduardo.mealplanner.weeklyplan.InvalidWeekStartException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -68,6 +69,11 @@ class ApiExceptionHandler {
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException exception) {
 		return error(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", exception.getMessage(), Map.of());
+	}
+
+	@ExceptionHandler(RecipeAccessDeniedException.class)
+	ResponseEntity<ApiError> handleRecipeAccessDenied(RecipeAccessDeniedException exception) {
+		return error(HttpStatus.FORBIDDEN, "ACCESS_DENIED", exception.getMessage(), Map.of());
 	}
 
 	@ExceptionHandler(InvalidWeekStartException.class)

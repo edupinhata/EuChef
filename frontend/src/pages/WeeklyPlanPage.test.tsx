@@ -117,6 +117,7 @@ describe("WeeklyPlanPage", () => {
     const user = userEvent.setup();
     const recipe: WeeklyPlanRecipe = {
       id: 7,
+      author: { id: 1, displayName: "Ana Souza" },
       name: "Risoto de cogumelos",
       servings: 4,
       preparationTimeMinutes: 45,
@@ -222,6 +223,7 @@ describe("WeeklyPlanPage", () => {
     const user = userEvent.setup();
     const risotto: WeeklyPlanRecipe = {
       id: 7,
+      author: { id: 1, displayName: "Ana Souza" },
       name: "Risoto de cogumelos",
       servings: 4,
       preparationTimeMinutes: 45,
@@ -316,6 +318,7 @@ describe("WeeklyPlanPage", () => {
     const user = userEvent.setup();
     const recipe: WeeklyPlanRecipe = {
       id: 10,
+      author: { id: 1, displayName: "Ana Souza" },
       name: "Torta de legumes",
       servings: 6,
       preparationTimeMinutes: 50,
@@ -378,6 +381,7 @@ describe("WeeklyPlanPage", () => {
     const user = userEvent.setup();
     const recipe: WeeklyPlanRecipe = {
       id: 11,
+      author: { id: 1, displayName: "Ana Souza" },
       name: "Caldo de abóbora",
       servings: 4,
       preparationTimeMinutes: 35,
@@ -432,6 +436,7 @@ describe("WeeklyPlanPage", () => {
     const user = userEvent.setup();
     const recipe: WeeklyPlanRecipe = {
       id: 9,
+      author: { id: 1, displayName: "Ana Souza" },
       name: "Ensopado de legumes",
       servings: 4,
       preparationTimeMinutes: 40,

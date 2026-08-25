@@ -65,6 +65,7 @@ export interface RecipePayload {
   description?: string;
   servings: number;
   preparationTimeMinutes: number;
+  youtubeVideoUrl?: string;
   ingredients: RecipeIngredientPayload[];
   preparationSteps: string[];
 }
@@ -78,18 +79,27 @@ export interface RecipeStep {
   instruction: string;
 }
 
+export interface RecipeAuthor {
+  id: number;
+  displayName: string;
+}
+
 export interface Recipe extends Omit<
   RecipePayload,
   "ingredients" | "preparationSteps"
 > {
   id: number;
+  author: RecipeAuthor;
   ingredients: RecipeIngredient[];
   preparationSteps: RecipeStep[];
   createdAt: string;
   updatedAt: string;
 }
 
-export type RecipeSummary = Omit<Recipe, "ingredients" | "preparationSteps">;
+export type RecipeSummary = Omit<
+  Recipe,
+  "ingredients" | "preparationSteps" | "youtubeVideoUrl"
+>;
 
 export interface WeeklyPlanRecipe extends RecipeSummary {
   plannedQuantity: number;

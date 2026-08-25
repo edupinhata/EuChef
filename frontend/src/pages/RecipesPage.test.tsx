@@ -7,8 +7,16 @@ import type { PagedResponse, Recipe, RecipeSummary } from "../api/types";
 import { currentWeekStart } from "../features/weekly-plan/week";
 import { RecipesPage } from "./RecipesPage";
 
+const owner = {
+  id: 1,
+  displayName: "Ana Souza",
+  email: "ana@example.com",
+  role: "USER" as const,
+};
+
 const recipe: RecipeSummary = {
   id: 1,
+  author: { id: 1, displayName: "Ana Souza" },
   name: "Risoto de cogumelos",
   description: "Cremoso e finalizado com parmesão.",
   servings: 4,
@@ -29,6 +37,7 @@ const page: PagedResponse<RecipeSummary> = {
 
 const fullRecipe: Recipe = {
   ...recipe,
+  youtubeVideoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   ingredients: [
     {
       ingredientId: 7,
@@ -55,6 +64,33 @@ const secondFullRecipe: Recipe = {
 afterEach(() => vi.restoreAllMocks());
 
 describe("RecipesPage", () => {
+  it("shows authorship and hides management actions for another user's recipe", async () => {
+    vi.spyOn(api.recipes, "list").mockResolvedValue(page);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RecipesPage
+          user={{
+            id: 2,
+            displayName: "Bruno Lima",
+            email: "bruno@example.com",
+            role: "USER",
+          }}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Por Ana Souza")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: `Editar ${recipe.name}` }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: `Excluir ${recipe.name}` }),
+    ).not.toBeInTheDocument();
+  });
   it("loads and displays recipe summaries", async () => {
     const list = vi.spyOn(api.recipes, "list").mockResolvedValue(page);
     const queryClient = new QueryClient({
@@ -63,7 +99,7 @@ describe("RecipesPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -96,7 +132,7 @@ describe("RecipesPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -132,7 +168,7 @@ describe("RecipesPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -156,7 +192,7 @@ describe("RecipesPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -192,7 +228,7 @@ describe("RecipesPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -236,7 +272,7 @@ describe("RecipesPage", () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -279,7 +315,7 @@ describe("RecipesPage", () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -328,6 +364,7 @@ describe("RecipesPage", () => {
       });
     const create = vi.spyOn(api.recipes, "create").mockResolvedValue({
       id: 9,
+      author: { id: 1, displayName: "Ana Souza" },
       name: "Arroz com tomate",
       servings: 2,
       preparationTimeMinutes: 20,
@@ -353,7 +390,7 @@ describe("RecipesPage", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -394,6 +431,10 @@ describe("RecipesPage", () => {
       screen.getByRole("spinbutton", { name: "Tempo de preparo (minutos)" }),
       "20",
     );
+    await user.type(
+      screen.getByRole("textbox", { name: "Vídeo do YouTube (opcional)" }),
+      "https://youtu.be/dQw4w9WgXcQ",
+    );
     await user.selectOptions(
       screen.getByRole("combobox", { name: "Ingrediente 1" }),
       "7",
@@ -415,6 +456,7 @@ describe("RecipesPage", () => {
         description: undefined,
         servings: 2,
         preparationTimeMinutes: 20,
+        youtubeVideoUrl: "https://youtu.be/dQw4w9WgXcQ",
         ingredients: [
           {
             ingredientId: 7,
@@ -430,6 +472,44 @@ describe("RecipesPage", () => {
       queryClient.getQueryState(["shopping-lists", "2026-07-27"])
         ?.isInvalidated,
     ).toBe(true);
+  });
+
+  it("shows ingredients and preparation before the privacy-enhanced video", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api.recipes, "list").mockResolvedValue(page);
+    vi.spyOn(api.recipes, "get").mockResolvedValue(fullRecipe);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RecipesPage user={owner} />
+      </QueryClientProvider>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: `Ver ${recipe.name}` }),
+    );
+
+    expect(await screen.findByText("200 GRAM de Cogumelo")).toBeInTheDocument();
+    expect(screen.getByText("Cozinhe o risoto.")).toBeInTheDocument();
+    const video = screen.getByTitle(`Vídeo da receita ${recipe.name}`);
+    expect(video).toHaveAttribute(
+      "src",
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+    );
+    expect(video).toHaveAttribute(
+      "sandbox",
+      "allow-scripts allow-same-origin allow-presentation",
+    );
+    for (const heading of ["Ingredientes", "Modo de preparo"]) {
+      expect(
+        screen
+          .getByRole("heading", { name: heading })
+          .compareDocumentPosition(video) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
   });
 
   it("loads the complete recipe and updates it", async () => {
@@ -462,7 +542,7 @@ describe("RecipesPage", () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -523,7 +603,7 @@ describe("RecipesPage", () => {
     );
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -584,7 +664,7 @@ describe("RecipesPage", () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -627,7 +707,7 @@ describe("RecipesPage", () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -678,7 +758,7 @@ describe("RecipesPage", () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
@@ -710,7 +790,7 @@ describe("RecipesPage", () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <RecipesPage />
+        <RecipesPage user={owner} />
       </QueryClientProvider>,
     );
 
