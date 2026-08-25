@@ -441,7 +441,7 @@ function youtubeVideoId(url?: string) {
     return null;
   }
   const match = url.match(
-    /^https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+    /^https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[&#?].*)?$/,
   );
   return match?.[1] ?? null;
 }

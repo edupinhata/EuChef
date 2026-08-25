@@ -512,6 +512,33 @@ describe("RecipesPage", () => {
     }
   });
 
+  it("does not embed a YouTube URL outside the accepted contract", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api.recipes, "list").mockResolvedValue(page);
+    vi.spyOn(api.recipes, "get").mockResolvedValue({
+      ...fullRecipe,
+      youtubeVideoUrl: "https://youtu.be/dQw4w9WgXcQinvalid-suffix",
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RecipesPage user={owner} />
+      </QueryClientProvider>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: `Ver ${recipe.name}` }),
+    );
+
+    expect(await screen.findByText("Cozinhe o risoto.")).toBeInTheDocument();
+    expect(
+      screen.queryByTitle(`Vídeo da receita ${recipe.name}`),
+    ).not.toBeInTheDocument();
+  });
+
   it("loads the complete recipe and updates it", async () => {
     const user = userEvent.setup();
     vi.spyOn(api.recipes, "list").mockResolvedValue(page);
