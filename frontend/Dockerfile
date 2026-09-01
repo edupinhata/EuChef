@@ -9,7 +9,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:18d67281256ded39ff65e010ae4f831be18f19356f83c60bc546492c7eb6dd23 AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:d9083fe47768377ef55dedafd67d4da7c2f2bc2bece7554954f29359deb0dce9 AS runtime
 USER root
 RUN apk upgrade --no-cache
 USER 101
